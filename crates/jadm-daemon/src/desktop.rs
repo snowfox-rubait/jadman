@@ -237,8 +237,8 @@ fn open_in_real_browser(url: &str) -> Result<()> {
 
     #[cfg(target_os = "windows")]
     {
-        println!("Spawning real browser via Windows start command...");
-        Command::new("cmd").args(&["/c", "start", url]).spawn()?;
+        println!("Spawning real browser via Windows rundll32 FileProtocolHandler...");
+        Command::new("rundll32").args(&["url.dll,FileProtocolHandler", url]).spawn()?;
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
