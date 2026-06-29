@@ -1,0 +1,448 @@
+/* 🎨 JADMan Minimalist stylesheet */
+
+:root {
+    --bg-dark: #0b0d0f;
+    --bg-card: #12141c;
+    --border-color: #20242c;
+    --text-main: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent-green: #4ade80;
+    --accent-blue: #38bdf8;
+    --accent-red: #f87171;
+    --accent-yellow: #facc15;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a:hover {
+    color: var(--accent-green);
+}
+
+code, pre {
+    font-family: var(--font-mono);
+}
+
+/* 1. HEADER */
+.site-header {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.2rem 1rem;
+    background-color: rgba(11, 13, 15, 0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-container {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.logo-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-main);
+}
+
+.badge {
+    background-color: var(--border-color);
+    border: 1px solid #2e3541;
+    color: var(--accent-green);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+}
+
+.main-nav {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.main-nav a {
+    color: var(--text-dim);
+}
+
+.main-nav a:hover {
+    color: var(--text-main);
+}
+
+.main-nav a.repo-link {
+    color: var(--accent-blue);
+}
+
+/* 2. LAYOUT WRAPPERS */
+.content-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+}
+
+section {
+    margin-bottom: 5rem;
+}
+
+.section-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.section-lead {
+    color: var(--text-dim);
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+}
+
+/* 3. HERO SECTION */
+.hero-section {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.hero-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
+    margin-bottom: 1.5rem;
+    color: #f8fafc;
+}
+
+.hero-lead {
+    font-size: 1.25rem;
+    color: var(--text-dim);
+    max-width: 700px;
+    margin: 0 auto 3rem auto;
+}
+
+/* INSTALL CMD BOX */
+.terminal-install {
+    max-width: 550px;
+    margin: 0 auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-card);
+    overflow: hidden;
+}
+
+.terminal-header {
+    background-color: #1a1d24;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.red { background-color: var(--accent-red); }
+.dot.yellow { background-color: var(--accent-yellow); }
+.dot.green { background-color: var(--accent-green); }
+
+.terminal-title {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+}
+
+.terminal-body {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+}
+
+.prompt {
+    color: var(--accent-green);
+    user-select: none;
+    margin-right: 0.5rem;
+}
+
+#install-cmd {
+    flex-grow: 1;
+    text-align: left;
+    overflow-x: auto;
+    white-space: nowrap;
+    color: var(--text-main);
+}
+
+.copy-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-dim);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--text-main);
+}
+
+/* 4. TUI CONSOLE MOCKUP */
+.console-window {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #0c0e12;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.console-header {
+    background-color: #15181f;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.console-buttons {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.btn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #2b303b;
+    display: inline-block;
+}
+
+.console-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+}
+
+.console-body {
+    padding: 1.5rem;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    text-align: left;
+    white-space: pre;
+    line-height: 1.4;
+}
+
+.c-green { color: var(--accent-green); }
+.c-yellow { color: var(--accent-yellow); }
+.c-cyan { color: var(--accent-blue); }
+.c-dim { color: var(--text-dim); }
+
+/* 5. CAPABILITIES GRID */
+.features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 600px) {
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.feature-card {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1.5rem;
+    background-color: var(--bg-card);
+}
+
+.feature-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: #f8fafc;
+}
+
+.feature-card p {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+}
+
+/* 6. DOWNLOADS & TABS */
+.tabs-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-card);
+    overflow: hidden;
+}
+
+.tab-headers {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    background-color: #161821;
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 500;
+    border-right: 1px solid var(--border-color);
+    transition: all 0.15s ease;
+}
+
+.tab-link:hover {
+    color: var(--text-main);
+    background-color: #1a1d26;
+}
+
+.tab-link.active {
+    color: var(--accent-green);
+    background-color: var(--bg-card);
+    border-bottom: 2px solid var(--accent-green);
+}
+
+.tab-content {
+    display: none;
+    padding: 2rem;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+}
+
+.tab-content p {
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+}
+
+.code-block {
+    background-color: #07080b;
+    border: 1px solid #1a1c23;
+    padding: 1.2rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    text-align: left;
+    line-height: 1.5;
+}
+
+.download-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.btn-primary {
+    background-color: var(--accent-green);
+    color: #0b0d0f;
+    border: 1px solid var(--accent-green);
+}
+
+.btn-primary:hover {
+    background-color: #34d399;
+    border-color: #34d399;
+    color: #0b0d0f;
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    border-color: var(--text-main);
+}
+
+/* 7. FOOTER */
+.site-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.footer-container {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.site-footer a {
+    color: var(--text-main);
+    text-decoration: underline;
+}
+
+.disclaimer {
+    color: #64748b;
+    font-size: 0.75rem;
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JADMan — Just Another Download Manager</title>
+    <meta name="description" content="A keyboard-driven, terminal-native download manager and stealth stream interceptor for Linux, macOS, and Windows.">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for crisp System and Mono typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- 1. HEADER & NAVIGATION -->
+    <header class="site-header">
+        <div class="header-container">
+            <div class="logo-area">
+                <span class="logo-text">JADMan</span>
+                <span id="version-badge" class="badge">checking version...</span>
+            </div>
+            <nav class="main-nav">
+                <a href="#features">Features</a>
+                <a href="#downloads">Downloads</a>
+                <a href="https://codeberg.org/snowfox-rubait-96/jadman/src/branch/main/docs/manual.md" target="_blank" rel="noopener">Manual</a>
+                <a href="https://codeberg.org/snowfox-rubait-96/jadman" class="repo-link" target="_blank" rel="noopener">Codeberg</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        <!-- 2. HERO SECTION -->
+        <section class="hero-section">
+            <h1 class="hero-title">The Download Engine Your Terminal Deserves.</h1>
+            <p class="hero-lead">
+                JADMan is a keyboard-driven, terminal-native download manager and stealth stream intercepter. 
+                Built in Rust, orchestrated by a background daemon, and controlled entirely from your keyboard.
+            </p>
+
+            <div class="terminal-install">
+                <div class="terminal-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                    <span class="terminal-title">Quick Install (Unix)</span>
+                </div>
+                <div class="terminal-body">
+                    <span class="prompt">$</span> <code id="install-cmd">curl -fsSL https://codeberg.org/snowfox-rubait-96/jadman/raw/branch/main/install.sh | bash</code>
+                    <button class="copy-btn" onclick="copyInstallCommand()" aria-label="Copy install command">Copy</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. TUI CONSOLE MOCKUP -->
+        <section class="mockup-section">
+            <div class="console-window">
+                <div class="console-header">
+                    <div class="console-buttons">
+                        <span class="btn-dot"></span>
+                        <span class="btn-dot"></span>
+                        <span class="btn-dot"></span>
+                    </div>
+                    <span class="console-title">rubait@localhost: ~ (jadm-tui)</span>
+                </div>
+                <pre class="console-body"><code><span class="c-green">JADMan v0.1.0</span> — Queue Active [Rate: <span class="c-yellow">12.4 MB/s</span>]
+<span class="c-dim">┌─────────────────┬────────────────────────────────────────────────────────┐</span>
+<span class="c-dim">│ Categories      │ Downloads                                              │</span>
+<span class="c-dim">│</span> <span class="c-cyan">▶ Unfinished (2)</span> <span class="c-dim">│</span> archlinux-x86_64.iso   <span class="c-dim">[######c      ] 45%  8.2MB/s   │</span>
+<span class="c-dim">│</span>   Videos        <span class="c-dim">│</span> debian-netinst.iso     <span class="c-dim">[             ] Paused         │</span>
+<span class="c-dim">│</span>   Audio         <span class="c-dim">│</span>                                                        │
+<span class="c-dim">│</span>   Documents     <span class="c-dim">├────────────────────────────────────────────────────────┤</span>
+<span class="c-dim">│</span>   Programs      <span class="c-dim">│</span> Active File Info                                       │
+<span class="c-dim">│</span>                 <span class="c-dim">│</span> File: archlinux-x86_64.iso                             │
+<span class="c-dim">│</span> <span class="c-cyan">  Finished (18)</span> <span class="c-dim">│</span> Size: 2.70 GB    ETA: 2m 14s    Engine: aria2c         │
+<span class="c-dim">└─────────────────┴────────────────────────────────────────────────────────┘</span>
+<span class="c-dim">[h/l] Focus  [j/k] Navigate  [p] Pause  [r] Resume  [a] Add  [?] Help  [q] Quit</span></code></pre>
+            </div>
+        </section>
+
+        <!-- 4. CORE FEATURES -->
+        <section id="features" class="features-section">
+            <h2 class="section-title">Core Capabilities</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>⚡ Segmented Speeds</h3>
+                    <p>Integrates natively with <code>aria2c</code> to fetch files using up to 16 parallel connections, saturating your bandwidth limit.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🕵️ Stealth Interception</h3>
+                    <p>Browser extension overrides page-level <code>fetch</code> and <code>XHR</code>, bypassing host limits and recursively tracing open/closed Shadow DOMs.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔐 Secure Cookie Sync</h3>
+                    <p>Integrates with <code>Cookie Master</code> to decrypt browser sessions directly to memory, bypassing login blockades on restricted servers.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎬 Dynamic Segment Stitcher</h3>
+                    <p>Siphons live streaming segments dynamically and auto-stitches raw buffers into clean MP4s via FFmpeg post-processing.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. PLATFORMS & DOWNLOADS -->
+        <section id="downloads" class="downloads-section">
+            <h2 class="section-title">Get JADMan</h2>
+            <p class="section-lead">Download precompiled binaries or install directly via your system package manager.</p>
+
+            <div class="tabs-container">
+                <div class="tab-headers">
+                    <button class="tab-link active" onclick="switchTab(event, 'tab-linux')">Linux</button>
+                    <button class="tab-link" onclick="switchTab(event, 'tab-windows')">Windows</button>
+                    <button class="tab-link" onclick="switchTab(event, 'tab-macos')">macOS</button>
+                    <button class="tab-link" onclick="switchTab(event, 'tab-android')">Android / Termux</button>
+                </div>
+
+                <!-- Linux Tab -->
+                <div id="tab-linux" class="tab-content active">
+                    <h3>Linux Installation</h3>
+                    <p>Install the daemon and TUI using your package manager:</p>
+                    <pre class="code-block"><code># Arch Linux (AUR)
+yay -S jadman-bin
+
+# Debian / Ubuntu (Direct download)
+wget <span class="linux-deb-url">https://codeberg.org/snowfox-rubait-96/jadman/releases/</span>
+sudo apt install ./jadman-amd64.deb</code></pre>
+                    <div class="download-actions">
+                        <a id="btn-download-linux" href="#" class="btn-primary">Download .deb (x64)</a>
+                        <a href="https://codeberg.org/snowfox-rubait-96/jadman/releases" class="btn-secondary" target="_blank" rel="noopener">All Linux Releases</a>
+                    </div>
+                </div>
+
+                <!-- Windows Tab -->
+                <div id="tab-windows" class="tab-content">
+                    <h3>Windows Installation</h3>
+                    <p>Install core tools via <code>winget</code>, then download the Windows binary package:</p>
+                    <pre class="code-block"><code># 1. Install dependencies
+winget install aria2.aria2 yt-dlp.yt-dlp Gyan.FFmpeg
+
+# 2. Register native messaging host
+jadm-daemon.exe install-native-manifest</code></pre>
+                    <div class="download-actions">
+                        <a id="btn-download-windows" href="#" class="btn-primary">Download JADMan Windows.zip</a>
+                    </div>
+                </div>
+
+                <!-- macOS Tab -->
+                <div id="tab-macos" class="tab-content">
+                    <h3>macOS Installation</h3>
+                    <p>Install dependencies via Homebrew, then grab the Darwin binaries:</p>
+                    <pre class="code-block"><code># 1. Install dependencies
+brew install aria2 yt-dlp ffmpeg
+
+# 2. Register native messaging host
+target/release/jadm-daemon install-native-manifest</code></pre>
+                    <div class="download-actions">
+                        <a id="btn-download-macos" href="#" class="btn-primary">Download JADMan macOS (ARM/Intel)</a>
+                    </div>
+                </div>
+
+                <!-- Android Tab -->
+                <div id="tab-android" class="tab-content">
+                    <h3>Android / Termux Installation</h3>
+                    <p>Run JADMan natively on your phone inside the Termux environment:</p>
+                    <pre class="code-block"><code># Install dependencies
+pkg install rust clang make python ffmpeg aria2 git
+
+# Clone and compile
+git clone https://codeberg.org/snowfox-rubait-96/jadman.git
+cd jadman && cargo build --release</code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 6. FOOTER -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <p>JADMan is open-source software licensed under the <a href="https://codeberg.org/snowfox-rubait-96/jadman/src/branch/main/LICENSE" target="_blank" rel="noopener">GNU GPLv3</a>.</p>
+            <p class="disclaimer">Disclaimer: JADMan is not affiliated with IDM or Tonec Inc. Use responsibly under local laws.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
