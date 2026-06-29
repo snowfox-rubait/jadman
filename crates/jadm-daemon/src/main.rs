@@ -280,8 +280,22 @@ async fn main() -> Result<()> {
     println!("jadm-daemon is running.");
     
     // Set up signal handling for cleanup
-    let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
-    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    let shutdown_signal = async {
+        #[cfg(unix)]
+        {
+            let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt()).unwrap();
+            let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
+            tokio::select! {
+                _ = sigint.recv() => println!("Received SIGINT"),
+                _ = sigterm.recv() => println!("Received SIGTERM"),
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = tokio::signal::ctrl_c().await;
+            println!("Received Ctrl-C / Shutdown signal");
+        }
+    };
 
     // Wait for critical tasks or signal
     tokio::select! {
@@ -292,8 +306,7 @@ async fn main() -> Result<()> {
         res = scheduler_handle => res?,
         res = clipboard_handle => res?,
         res = async { proxy_handle.unwrap_or(tokio::spawn(async { loop { sleep(Duration::from_secs(3600)).await; } })).await }, if proxy_handle.is_some() => res?,
-        _ = sigint.recv() => println!("Received SIGINT"),
-        _ = sigterm.recv() => println!("Received SIGTERM"),
+        _ = shutdown_signal => {}
     }
 
     // Cleanup
