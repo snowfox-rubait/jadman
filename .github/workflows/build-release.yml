@@ -33,8 +33,10 @@ jobs:
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.job.target }}
+
+    - name: Add Target
+      run: rustup target add ${{ matrix.job.target }}
+      shell: bash
 
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2
