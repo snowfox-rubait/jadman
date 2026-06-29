@@ -154,7 +154,12 @@ pub async fn handle_url(url: &str) -> Result<()> {
             "url": url
         });
         
-        match tokio::net::UnixStream::connect(&socket_path).await {
+        #[cfg(unix)]
+        let connect_res = tokio::net::UnixStream::connect(&socket_path).await;
+        #[cfg(not(unix))]
+        let connect_res = tokio::net::TcpStream::connect("127.0.0.1:6245").await;
+
+        match connect_res {
             Ok(mut stream) => {
                 use tokio::io::AsyncWriteExt;
                 let mut data = serde_json::to_vec(&payload).unwrap();

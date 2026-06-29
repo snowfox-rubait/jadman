@@ -1,7 +1,10 @@
 use anyhow::Result;
 use jadm_common::protocol::{Request, Response};
 use std::io::{self, Read, Write};
+#[cfg(unix)]
 use tokio::net::UnixStream;
+#[cfg(not(unix))]
+use tokio::net::TcpStream;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use directories::ProjectDirs;
 
@@ -53,7 +56,11 @@ pub async fn run_native_host() -> Result<()> {
         });
 
     // Connect to the daemon
+    #[cfg(unix)]
     let mut stream = UnixStream::connect(&socket_path).await
+        .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon: {}", e))?;
+    #[cfg(not(unix))]
+    let mut stream = TcpStream::connect("127.0.0.1:6245").await
         .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon: {}", e))?;
     
     // We split the Unix stream to handle read/write simultaneously
