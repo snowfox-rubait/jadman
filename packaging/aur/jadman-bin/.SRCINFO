@@ -15,6 +15,8 @@ pkgbase = jadman-bin
 	conflicts = jadman
 	conflicts = jadman-git
 	source = https://github.com/snowfox-rubait/jadman/releases/download/v0.1.0/jadman-x86_64-unknown-linux-gnu.tar.gz
+	source = jadman-source-0.1.0.tar.gz::https://github.com/snowfox-rubait/jadman/archive/refs/tags/v0.1.0.tar.gz
 	sha256sums = 7c67a347d0bf372139e13114761c43132c6298c47ec3306ac216514486a8f082
+	sha256sums = 89d40bf269ffec2ca5b52890243d1bef54a553f91e5b17cd75eb796272097f02
 
 pkgname = jadman-bin
