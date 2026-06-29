@@ -1,0 +1,20 @@
+pkgbase = jadman-bin
+	pkgdesc = Advanced Browser-Integrated Download Manager (Pre-compiled Binaries)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/snowfox-rubait/jadman
+	arch = x86_64
+	license = GPL3
+	depends = openssl
+	depends = aria2
+	depends = yt-dlp
+	depends = ffmpeg
+	provides = jadman
+	provides = jadm-daemon
+	provides = jadm-tui
+	conflicts = jadman
+	conflicts = jadman-git
+	source = https://github.com/snowfox-rubait/jadman/releases/download/v0.1.0/jadman-x86_64-unknown-linux-gnu.tar.gz
+	sha256sums = 7c67a347d0bf372139e13114761c43132c6298c47ec3306ac216514486a8f082
+
+pkgname = jadman-bin

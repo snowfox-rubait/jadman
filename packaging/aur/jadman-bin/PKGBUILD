@@ -1,0 +1,19 @@
+# Maintainer: snowfox-rubait <266122632+snowfox-rubait@users.noreply.github.com>
+pkgname=jadman-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Advanced Browser-Integrated Download Manager (Pre-compiled Binaries)"
+arch=('x86_64')
+url="https://github.com/snowfox-rubait/jadman"
+license=('GPL3')
+depends=('openssl' 'aria2' 'yt-dlp' 'ffmpeg')
+provides=('jadman' 'jadm-daemon' 'jadm-tui')
+conflicts=('jadman' 'jadman-git')
+source=("https://github.com/snowfox-rubait/jadman/releases/download/v$pkgver/jadman-x86_64-unknown-linux-gnu.tar.gz")
+sha256sums=('7c67a347d0bf372139e13114761c43132c6298c47ec3306ac216514486a8f082')
+
+package() {
+  # Install precompiled binaries
+  install -Dm755 "${srcdir}/jadm-daemon" "${pkgdir}/usr/bin/jadm-daemon"
+  install -Dm755 "${srcdir}/jadm-tui" "${pkgdir}/usr/bin/jadm-tui"
+}
