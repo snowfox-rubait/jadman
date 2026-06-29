@@ -15,15 +15,53 @@ impl TrustManager {
     pub fn install(&self) -> Result<()> {
         println!("Installing Root CA into trust stores...");
 
-        // 1. System-wide trust store
-        self.install_system_wide()?;
+        #[cfg(target_os = "linux")]
+        {
+            // 1. System-wide trust store
+            self.install_system_wide()?;
 
-        // 2. Chrome/NSS trust store (~/.pki/nssdb)
-        self.install_nssdb()?;
+            // 2. Chrome/NSS trust store (~/.pki/nssdb)
+            self.install_nssdb()?;
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            println!("Installing Root CA into macOS system keychain...");
+            let status = Command::new("sudo")
+                .args(&[
+                    "security", "add-trusted-cert", 
+                    "-d", "-r", "trustRoot", 
+                    "-k", "/Library/Keychains/System.keychain", 
+                    self.ca_cert_path.to_str().unwrap()
+                ])
+                .status()?;
+            
+            if !status.success() {
+                return Err(anyhow::anyhow!("Failed to install CA certificate into macOS Keychain."));
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            println!("Installing Root CA into Windows Trusted Root Certification Authorities store...");
+            let status = Command::new("certutil")
+                .args(&["-addstore", "-user", "root", self.ca_cert_path.to_str().unwrap()])
+                .status()?;
+            
+            if !status.success() {
+                return Err(anyhow::anyhow!("Failed to install CA certificate into Windows Trusted Root store."));
+            }
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        {
+            println!("Skipping automatic CA installation on this platform. Please install {:?} manually.", self.ca_cert_path);
+        }
 
         Ok(())
     }
 
+    #[cfg(target_os = "linux")]
     fn install_system_wide(&self) -> Result<()> {
         // Debian/Ubuntu style
         if Path::new("/usr/local/share/ca-certificates/").exists() {
@@ -45,6 +83,7 @@ impl TrustManager {
         Ok(())
     }
 
+    #[cfg(target_os = "linux")]
     fn install_nssdb(&self) -> Result<()> {
         let home = std::env::var("HOME")?;
         let nss_db_path = format!("{}/.pki/nssdb", home);
@@ -78,6 +117,7 @@ impl TrustManager {
         Ok(())
     }
 
+    #[cfg(target_os = "linux")]
     fn run_sudo(&self, args: &[&str]) -> Result<()> {
         let status = Command::new("sudo")
             .args(args)

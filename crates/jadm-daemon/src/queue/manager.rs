@@ -592,13 +592,22 @@ impl QueueManager {
 
         if has_subprocess {
             if let Some((_, pid)) = self.ytdlp_pids.remove(&id) {
-                println!("Sending SIGINT to child PID {}", pid);
-                let res = unsafe { libc::kill(pid as libc::pid_t, libc::SIGINT) };
-                if res != 0 {
-                    let err = std::io::Error::last_os_error();
-                    eprintln!("Failed to send SIGINT to PID {}: {}", pid, err);
-                } else {
-                    println!("Successfully sent SIGINT to child PID {}", pid);
+                println!("Stopping child PID {}", pid);
+                #[cfg(unix)]
+                {
+                    let res = unsafe { libc::kill(pid as libc::pid_t, libc::SIGINT) };
+                    if res != 0 {
+                        let err = std::io::Error::last_os_error();
+                        eprintln!("Failed to send SIGINT to PID {}: {}", pid, err);
+                    } else {
+                        println!("Successfully sent SIGINT to child PID {}", pid);
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = std::process::Command::new("taskkill")
+                        .args(&["/F", "/PID", &pid.to_string()])
+                        .status();
                 }
             }
             if let Some((_, handle)) = self.ytdlp_handles.remove(&id) {
@@ -671,13 +680,22 @@ impl QueueManager {
 
         if has_subprocess {
             if let Some((_, pid)) = self.ytdlp_pids.remove(&id) {
-                println!("Sending SIGINT to child PID {}", pid);
-                let res = unsafe { libc::kill(pid as libc::pid_t, libc::SIGINT) };
-                if res != 0 {
-                    let err = std::io::Error::last_os_error();
-                    eprintln!("Failed to send SIGINT to PID {}: {}", pid, err);
-                } else {
-                    println!("Successfully sent SIGINT to child PID {}", pid);
+                println!("Stopping child PID {}", pid);
+                #[cfg(unix)]
+                {
+                    let res = unsafe { libc::kill(pid as libc::pid_t, libc::SIGINT) };
+                    if res != 0 {
+                        let err = std::io::Error::last_os_error();
+                        eprintln!("Failed to send SIGINT to PID {}: {}", pid, err);
+                    } else {
+                        println!("Successfully sent SIGINT to child PID {}", pid);
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = std::process::Command::new("taskkill")
+                        .args(&["/F", "/PID", &pid.to_string()])
+                        .status();
                 }
             }
             if let Some((_, handle)) = self.ytdlp_handles.remove(&id) {

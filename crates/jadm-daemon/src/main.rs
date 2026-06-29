@@ -172,11 +172,17 @@ async fn main() -> Result<()> {
     // 5. Start RPC Server
     let socket_path = proj_dirs.runtime_dir()
         .map(|d| d.join("jadm.sock"))
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/jadm.sock"));
+        .unwrap_or_else(|| {
+            #[cfg(unix)]
+            { std::path::PathBuf::from("/tmp/jadm.sock") }
+            #[cfg(not(unix))]
+            { std::env::temp_dir().join("jadm.sock") }
+        });
     
-    // Ensure parent directory exists for socket if it's not /tmp
+    // Ensure parent directory exists for socket
     if let Some(parent) = socket_path.parent() {
-        if parent != std::path::Path::new("/tmp") {
+        let is_temp = parent == std::path::Path::new("/tmp") || parent == std::env::temp_dir();
+        if !is_temp {
             fs::create_dir_all(parent)?;
         }
     }
@@ -194,7 +200,12 @@ async fn main() -> Result<()> {
     let socks_token = uuid::Uuid::new_v4().to_string().replace("-", "");
     let token_path = proj_dirs.runtime_dir()
         .map(|d| d.join("jadm_socks_token"))
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/jadm_socks_token"));
+        .unwrap_or_else(|| {
+            #[cfg(unix)]
+            { std::path::PathBuf::from("/tmp/jadm_socks_token") }
+            #[cfg(not(unix))]
+            { std::env::temp_dir().join("jadm_socks_token") }
+        });
 
     let tmp_path = token_path.with_extension("tmp");
     let token_clone = socks_token.clone();
@@ -202,16 +213,30 @@ async fn main() -> Result<()> {
     let dest_clone = token_path.clone();
 
     tokio::task::spawn_blocking(move || {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&tmp_clone)
-            .expect("Failed to create secure token file");
-        use std::io::Write;
-        f.write_all(token_clone.as_bytes()).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&tmp_clone)
+                .expect("Failed to create secure token file");
+            use std::io::Write;
+            f.write_all(token_clone.as_bytes()).unwrap();
+        }
+        #[cfg(not(unix))]
+        {
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&tmp_clone)
+                .expect("Failed to create token file");
+            use std::io::Write;
+            f.write_all(token_clone.as_bytes()).unwrap();
+        }
         std::fs::rename(&tmp_clone, &dest_clone).unwrap();
     }).await.unwrap();
 

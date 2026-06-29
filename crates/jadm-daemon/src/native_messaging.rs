@@ -41,7 +41,16 @@ pub async fn run_native_host() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Could not determine project directories"))?;
     let socket_path = proj_dirs.runtime_dir()
         .map(|d| d.join("jadm.sock"))
-        .unwrap_or_else(|| std::path::PathBuf::from(format!("/run/user/{}/jadm/jadm.sock", unsafe { libc::geteuid() })));
+        .unwrap_or_else(|| {
+            #[cfg(unix)]
+            {
+                std::path::PathBuf::from(format!("/run/user/{}/jadm/jadm.sock", unsafe { libc::geteuid() }))
+            }
+            #[cfg(not(unix))]
+            {
+                std::env::temp_dir().join("jadm.sock")
+            }
+        });
 
     // Connect to the daemon
     let mut stream = UnixStream::connect(&socket_path).await
@@ -75,52 +84,94 @@ pub async fn run_native_host() -> Result<()> {
 }
 
 pub fn install_native_manifest() -> Result<()> {
-    let home = std::env::var("HOME")?;
-    let chrome_dir = std::path::PathBuf::from(home.clone()).join(".config/google-chrome/NativeMessagingHosts");
-    let chromium_dir = std::path::PathBuf::from(home.clone()).join(".config/chromium/NativeMessagingHosts");
-    let brave_dir = std::path::PathBuf::from(home.clone()).join(".config/BraveSoftware/Brave-Browser/NativeMessagingHosts");
-    let firefox_dir = std::path::PathBuf::from(home).join(".mozilla/native-messaging-hosts");
-
     let exe_path = std::env::current_exe()?;
+    let exe_path_str = exe_path.to_string_lossy();
 
     // Chrome/Chromium/Brave manifest format (uses allowed_origins)
     let chrome_manifest = serde_json::json!({
         "name": "com.jadm.jadm",
         "description": "JADMan Native Messaging Host",
-        "path": exe_path.to_string_lossy(),
+        "path": exe_path_str,
         "type": "stdio",
         "allowed_origins": [
             "chrome-extension://ipiefkjcicogeoepimgebinafoelhbhd/"
         ]
     });
 
-    let chrome_manifest_str = serde_json::to_string_pretty(&chrome_manifest)?;
-
-    for dir in &[chrome_dir, chromium_dir, brave_dir] {
-        if let Ok(_) = std::fs::create_dir_all(dir) {
-            let manifest_path = dir.join("com.jadm.jadm.json");
-            let _ = std::fs::write(manifest_path, &chrome_manifest_str);
-        }
-    }
-
     // Firefox manifest format (uses allowed_extensions)
     let firefox_manifest = serde_json::json!({
         "name": "com.jadm.jadm",
         "description": "JADMan Native Messaging Host",
-        "path": exe_path.to_string_lossy(),
+        "path": exe_path_str,
         "type": "stdio",
         "allowed_extensions": [
             "jadm@snowfox.com"
         ]
     });
 
-    let firefox_manifest_str = serde_json::to_string_pretty(&firefox_manifest)?;
+    let chrome_str = serde_json::to_string_pretty(&chrome_manifest)?;
+    let firefox_str = serde_json::to_string_pretty(&firefox_manifest)?;
 
-    if let Ok(_) = std::fs::create_dir_all(&firefox_dir) {
-        let manifest_path = firefox_dir.join("com.jadm.jadm.json");
-        let _ = std::fs::write(manifest_path, &firefox_manifest_str);
+    #[cfg(target_os = "windows")]
+    {
+        let app_data = std::env::var("APPDATA")?;
+        let jadman_dir = std::path::PathBuf::from(app_data).join("JADMan");
+        std::fs::create_dir_all(&jadman_dir)?;
+
+        let chrome_manifest_path = jadman_dir.join("com.jadm.jadm.json");
+        let firefox_manifest_path = jadman_dir.join("com.jadm.jadm_firefox.json");
+
+        std::fs::write(&chrome_manifest_path, &chrome_str)?;
+        std::fs::write(&firefox_manifest_path, &firefox_str)?;
+
+        // Register in Windows Registry via reg.exe command (needs no extra dependency crates)
+        let _ = std::process::Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\com.jadm.jadm", "/ve", "/t", "REG_SZ", "/d", &chrome_manifest_path.to_string_lossy(), "/f"])
+            .status();
+        let _ = std::process::Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Mozilla\\NativeMessagingHosts\\com.jadm.jadm", "/ve", "/t", "REG_SZ", "/d", &firefox_manifest_path.to_string_lossy(), "/f"])
+            .status();
+
+        println!("Native messaging manifest registered in Windows Registry.");
     }
 
-    println!("Native messaging manifest installed to Chrome/Chromium/Brave/Firefox directories.");
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME")?;
+        let is_mac = cfg!(target_os = "macos");
+
+        let (chrome_dir, chromium_dir, brave_dir, firefox_dir) = if is_mac {
+            let base = std::path::PathBuf::from(&home).join("Library/Application Support");
+            (
+                base.join("Google/Chrome/NativeMessagingHosts"),
+                base.join("Chromium/NativeMessagingHosts"),
+                base.join("BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+                base.join("Mozilla/NativeMessagingHosts"),
+            )
+        } else {
+            let base = std::path::PathBuf::from(&home).join(".config");
+            (
+                base.join("google-chrome/NativeMessagingHosts"),
+                base.join("chromium/NativeMessagingHosts"),
+                base.join("BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+                std::path::PathBuf::from(&home).join(".mozilla/native-messaging-hosts"),
+            )
+        };
+
+        for dir in &[chrome_dir, chromium_dir, brave_dir] {
+            if let Ok(_) = std::fs::create_dir_all(dir) {
+                let manifest_path = dir.join("com.jadm.jadm.json");
+                let _ = std::fs::write(manifest_path, &chrome_str);
+            }
+        }
+
+        if let Ok(_) = std::fs::create_dir_all(&firefox_dir) {
+            let manifest_path = firefox_dir.join("com.jadm.jadm.json");
+            let _ = std::fs::write(manifest_path, &firefox_str);
+        }
+
+        println!("Native messaging manifest installed to Chrome/Chromium/Brave/Firefox directories.");
+    }
+
     Ok(())
 }

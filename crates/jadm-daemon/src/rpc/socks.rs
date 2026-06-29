@@ -1,6 +1,7 @@
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::net::SocketAddr;
+#[cfg(unix)]
 use std::os::unix::io::AsRawFd;
 use anyhow::{Result, anyhow};
 
@@ -124,6 +125,7 @@ async fn handle_socks_connection(socket: &mut TcpStream, expected_token: &str) -
     let remote_stream = TcpStream::connect(ip_addr).await?;
 
     // Tune socket options on the outgoing remote socket!
+    #[cfg(unix)]
     tune_socket_for_windows_spoofing(&remote_stream);
 
     // Respond success
@@ -157,6 +159,7 @@ fn is_private_or_local_ip(addr: std::net::IpAddr) -> bool {
     }
 }
 
+#[cfg(unix)]
 fn tune_socket_for_windows_spoofing(stream: &TcpStream) {
     let fd = stream.as_raw_fd();
     unsafe {

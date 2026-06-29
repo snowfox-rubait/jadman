@@ -1,0 +1,118 @@
+name: Build & Package Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build - ${{ matrix.job.target }}
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          # Windows
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, use-cross: false, extension: .exe }
+          # macOS Intel
+          - { os: macos-latest, target: x86_64-apple-darwin, use-cross: false, extension: "" }
+          # macOS Apple Silicon
+          - { os: macos-latest, target: aarch64-apple-darwin, use-cross: false, extension: "" }
+          # Linux x64
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, use-cross: false, extension: "" }
+          # Linux ARM64
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, use-cross: true, extension: "" }
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.job.target }}
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.job.target }}
+
+    - name: Setup Cross Compilation (if needed)
+      if: matrix.job.use-cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+
+    - name: Compile Daemon & TUI
+      run: |
+        if [ "${{ matrix.job.use-cross }}" = "true" ]; then
+          cross build --release --target ${{ matrix.job.target }}
+        else
+          cargo build --release --target ${{ matrix.job.target }}
+        fi
+      shell: bash
+
+    - name: Package Release Assets
+      id: package
+      run: |
+        # Setup directories
+        mkdir -p dist
+        
+        # Binary Paths
+        DAEMON_SRC="target/${{ matrix.job.target }}/release/jadm-daemon${{ matrix.job.extension }}"
+        TUI_SRC="target/${{ matrix.job.target }}/release/jadm-tui${{ matrix.job.extension }}"
+        
+        # Package Name
+        PKG_NAME="jadman-${{ matrix.job.target }}"
+        
+        if [ "${{ matrix.job.os }}" = "windows-latest" ]; then
+          # Zip packaging for Windows
+          powershell -Command "Compress-Archive -Path $DAEMON_SRC, $TUI_SRC -DestinationPath dist/$PKG_NAME.zip"
+          echo "asset_path=dist/$PKG_NAME.zip" >> $GITHUB_OUTPUT
+          echo "asset_name=$PKG_NAME.zip" >> $GITHUB_OUTPUT
+        else
+          # Tar.gz packaging for Linux/macOS
+          tar -czf dist/$PKG_NAME.tar.gz -C target/${{ matrix.job.target }}/release jadm-daemon jadm-tui
+          echo "asset_path=dist/$PKG_NAME.tar.gz" >> $GITHUB_OUTPUT
+          echo "asset_name=$PKG_NAME.tar.gz" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+
+    - name: Upload Artifacts (Build)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.package.outputs.asset_name }}
+        path: ${{ steps.package.outputs.asset_path }}
+
+  release:
+    name: Create Code Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Flatten Artifacts Directory
+      run: |
+        mkdir -p release-assets
+        find artifacts -type f -exec cp {} release-assets/ \;
+        ls -la release-assets
+
+    - name: Create Release Page
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

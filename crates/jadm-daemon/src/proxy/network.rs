@@ -14,22 +14,29 @@ impl NetworkIntercepter {
     pub fn setup(&self) -> Result<()> {
         println!("Setting up network interception (redirecting to port {})", self.proxy_port);
         
-        // iptables rules
-        // 1. Redirect HTTP
-        self.run_iptables(&[
-            "-t", "nat", "-A", "OUTPUT", 
-            "-p", "tcp", "--dport", "80", 
-            "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
-            "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
-        ])?;
+        #[cfg(target_os = "linux")]
+        {
+            // 1. Redirect HTTP
+            self.run_iptables(&[
+                "-t", "nat", "-A", "OUTPUT", 
+                "-p", "tcp", "--dport", "80", 
+                "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
+                "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
+            ])?;
 
-        // 2. Redirect HTTPS
-        self.run_iptables(&[
-            "-t", "nat", "-A", "OUTPUT", 
-            "-p", "tcp", "--dport", "443", 
-            "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
-            "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
-        ])?;
+            // 2. Redirect HTTPS
+            self.run_iptables(&[
+                "-t", "nat", "-A", "OUTPUT", 
+                "-p", "tcp", "--dport", "443", 
+                "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
+                "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
+            ])?;
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            println!("Transparent network interception is currently only supported on Linux. Please configure proxy settings manually.");
+        }
 
         Ok(())
     }
@@ -37,24 +44,28 @@ impl NetworkIntercepter {
     pub fn teardown(&self) -> Result<()> {
         println!("Tearing down network interception");
         
-        // Remove rules
-        let _ = self.run_iptables(&[
-            "-t", "nat", "-D", "OUTPUT", 
-            "-p", "tcp", "--dport", "80", 
-            "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
-            "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
-        ]);
+        #[cfg(target_os = "linux")]
+        {
+            // Remove rules
+            let _ = self.run_iptables(&[
+                "-t", "nat", "-D", "OUTPUT", 
+                "-p", "tcp", "--dport", "80", 
+                "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
+                "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
+            ]);
 
-        let _ = self.run_iptables(&[
-            "-t", "nat", "-D", "OUTPUT", 
-            "-p", "tcp", "--dport", "443", 
-            "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
-            "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
-        ]);
+            let _ = self.run_iptables(&[
+                "-t", "nat", "-D", "OUTPUT", 
+                "-p", "tcp", "--dport", "443", 
+                "-m", "mark", "!", "--mark", &format!("{:#x}", self.mark), 
+                "-j", "REDIRECT", "--to-port", &self.proxy_port.to_string()
+            ]);
+        }
 
         Ok(())
     }
 
+    #[cfg(target_os = "linux")]
     fn run_iptables(&self, args: &[&str]) -> Result<()> {
         let status = Command::new("sudo")
             .arg("iptables")
