@@ -877,25 +877,17 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     
     const wrapperTagName = 'x-' + RANDOM_PREFIX + '-wrap';
     const existingWrapper = targetElement.querySelector(wrapperTagName);
-    if (targetElement.dataset[RANDOM_PREFIX + 'Injected'] === "true") {
-        if (existingWrapper) {
-            return;
-        } else {
-            targetElement.dataset[RANDOM_PREFIX + 'Injected'] = "false";
+    if (existingWrapper) {
+        if (existingWrapper._icon) {
+            existingWrapper._icon.dataset.mediaUrl = mediaUrl || "";
         }
+        return;
     }
     
     const style = window.getComputedStyle(targetElement);
     if (style.position === "static") {
         targetElement.style.position = "relative";
     }
-
-    // Create wrapper element with a randomized tag name
-    const wrapper = nativeCreateElement.call(document, wrapperTagName);
-    wrapper.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647;`;
-    
-    // Attach closed shadow root using native attachShadow
-    const shadow = nativeAttachShadow.call(wrapper, { mode: 'closed' });
 
     const icon = nativeCreateElement.call(document, "div");
     icon.className = ICON_CLASS;
@@ -910,17 +902,27 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     icon.addEventListener("mouseenter", show);
     icon.addEventListener("mouseleave", hide);
 
+    icon.dataset.mediaUrl = mediaUrl || "";
     icon.onclick = (e) => { 
         e.preventDefault(); e.stopPropagation(); 
+        const currentUrl = icon.dataset.mediaUrl || window.location.href;
         if (chrome.runtime?.id) {
             if (isGrabberFallback) {
                 chrome.runtime.sendMessage({ action: "open_grabber" });
             } else {
                 const mime = targetElement.tagName === "VIDEO" ? "video/mp4" : (targetElement.tagName === "AUDIO" ? "audio/mpeg" : null);
-                chrome.runtime.sendMessage({ action: "request_download", url: mediaUrl, mime: mime }); 
+                chrome.runtime.sendMessage({ action: "request_download", url: currentUrl, mime: mime }); 
             }
         }
     };
+
+    // Create wrapper element with a randomized tag name
+    const wrapper = nativeCreateElement.call(document, wrapperTagName);
+    wrapper.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647;`;
+    wrapper._icon = icon;
+    
+    // Attach closed shadow root using native attachShadow
+    const shadow = nativeAttachShadow.call(wrapper, { mode: 'closed' });
     
     nativeAppendChild.call(shadow, icon);
     nativeAppendChild.call(targetElement, wrapper);
