@@ -90,6 +90,124 @@ function stopWebGLRecording() {
     }
 }
 
+let activeSegmentRecorderId = null;
+let activeSegmentOverlay = null;
+let isSegmentRecordingStopped = false;
+
+function startSegmentRecording(daemonId, filename, url) {
+    activeSegmentRecorderId = daemonId;
+    isSegmentRecordingStopped = false;
+
+    // Reset document variables
+    document.documentElement.setAttribute('data-jadman-record', 'true');
+    document.documentElement.setAttribute('data-jadman-record-id', daemonId);
+    document.documentElement.setAttribute('data-jadman-record-index', '0');
+
+    // Create a beautiful recording status overlay (using stealth shadow root)
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(17, 17, 17, 0.95);
+        color: #fff;
+        border: 2px solid #00ff88;
+        border-radius: 12px;
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 2147483647;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        pointer-events: auto !important;
+    `;
+
+    const dot = document.createElement("div");
+    dot.style.cssText = `
+        width: 10px;
+        height: 10px;
+        background: #00ff88;
+        border-radius: 50%;
+        animation: jadm-pulse 1s infinite alternate;
+    `;
+
+    const text = document.createElement("span");
+    text.innerText = "JADMan Recording Segments... 0 chunks";
+    text.style.fontFamily = "sans-serif";
+    text.style.fontSize = "13px";
+    text.style.fontWeight = "bold";
+
+    const stopBtn = document.createElement("button");
+    stopBtn.innerText = "Stop & Save";
+    stopBtn.style.cssText = `
+        background: #ff3333;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-weight: bold;
+        font-family: sans-serif;
+        font-size: 12px;
+        transition: background 0.2s;
+    `;
+    stopBtn.onmouseover = () => stopBtn.style.background = "#cc0000";
+    stopBtn.onmouseout = () => stopBtn.style.background = "#ff3333";
+    
+    stopBtn.onclick = () => {
+        stopSegmentRecording();
+    };
+
+    activeSegmentOverlay = overlay;
+
+    overlay.appendChild(dot);
+    overlay.appendChild(text);
+    overlay.appendChild(stopBtn);
+    
+    const root = getStealthShadowRoot();
+    nativeAppendChild.call(root, overlay);
+
+    // Watch for chunk updates
+    const observer = new MutationObserver(() => {
+        const index = document.documentElement.getAttribute('data-jadman-record-index') || '0';
+        text.innerText = `JADMan Recording Segments... ${index} chunks`;
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-jadman-record-index'] });
+    
+    overlay._observer = observer;
+}
+
+function stopSegmentRecording() {
+    isSegmentRecordingStopped = true;
+    document.documentElement.removeAttribute('data-jadman-record');
+    document.documentElement.removeAttribute('data-jadman-record-id');
+    document.documentElement.removeAttribute('data-jadman-record-index');
+
+    if (activeSegmentOverlay) {
+        if (activeSegmentOverlay._observer) {
+            activeSegmentOverlay._observer.disconnect();
+        }
+        try {
+            activeSegmentOverlay.remove();
+        } catch(e) {}
+        activeSegmentOverlay = null;
+    }
+
+    if (activeSegmentRecorderId) {
+        chrome.runtime.sendMessage({
+            cmd: 'SiphonChunk',
+            daemon_id: activeSegmentRecorderId,
+            chunk_index: 999999,
+            is_last: true,
+            filename: 'captured_stream.mp4',
+            total_size: 0,
+            data: []
+        });
+        activeSegmentRecorderId = null;
+    }
+}
+
 
 // 1. Force enable right-click with extreme prejudice
 function unblockRightClick() {
@@ -449,6 +567,12 @@ chrome.runtime.onMessage.addListener((message) => {
     } else if (message.action === "stop_webgl_capture") {
         console.log("[JADMan Content Script] Received programmatic stop_webgl_capture message.");
         stopWebGLRecording();
+    } else if (message.action === "start_segment_recording") {
+        console.log("[JADMan Content Script] Received start_segment_recording message:", message);
+        startSegmentRecording(message.daemonId, message.filename, message.url);
+    } else if (message.action === "stop_segment_recording") {
+        console.log("[JADMan Content Script] Received programmatic stop_segment_recording message.");
+        stopSegmentRecording();
     } else if (message.action === "start_browser_fetch") {
         console.log("[JADMan Content Script] Received start_browser_fetch message:", message);
         const { url, daemonId, folder } = message;

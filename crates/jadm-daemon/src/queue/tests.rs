@@ -33,6 +33,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: None,
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -66,6 +71,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("aria2c".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -111,6 +121,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("aria2c".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -170,6 +185,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("aria2c".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -221,6 +241,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("aria2c".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -256,6 +281,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("browser_fetch".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -321,6 +351,11 @@ mod tests {
             embed_thumbnail: false,
             embed_chapters: false,
             engine: Some("browser_fetch".to_string()),
+            live_support: false,
+            live_from_start: false,
+            compress_video: false,
+            download_playlist: false,
+            referer: None,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();

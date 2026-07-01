@@ -211,6 +211,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     const liveSupport = document.getElementById("liveSupport").checked;
     const liveFromStart = document.getElementById("liveFromStart").checked;
     const compressVideo = document.getElementById("compressVideo").checked;
+    const recordSegments = document.getElementById("recordSegments") ? document.getElementById("recordSegments").checked : false;
     const downloadPlaylist = document.getElementById("downloadPlaylist") ? document.getElementById("downloadPlaylist").checked : false;
     const mode = modeSelect.value;
     const ghostEngine = ghostEngineSelect ? ghostEngineSelect.value : "ytdlp";
@@ -218,6 +219,78 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     const useWebGL = mode === "ghost" && ghostEngine === "webgl_capture";
     const useNative = mode === "ghost" && ghostEngine === "chrome_native";
     const useBrowserFetch = mode === "ghost" && ghostEngine === "browser_fetch";
+
+    if (recordSegments) {
+        statusDiv.innerText = "📥 Starting Media Stream Segment Siphoning...";
+
+        // 1. Get active tab to communicate with
+        let targetTabId = null;
+        const queryTabId = params.get("tabId");
+        if (queryTabId) {
+            targetTabId = parseInt(queryTabId, 10);
+        } else {
+            try {
+                const tabs = await chrome.tabs.query({});
+                let targetTab = tabs.find(t => t.active && t.url && !t.url.startsWith("chrome-extension://"));
+                if (!targetTab) {
+                    targetTab = tabs.find(t => t.url && (t.url === url || url.includes(t.url.split('?')[0])));
+                }
+                if (!targetTab) {
+                    targetTab = tabs.find(t => t.url && !t.url.startsWith("chrome-extension://"));
+                }
+                if (targetTab) targetTabId = targetTab.id;
+            } catch(e) {
+                console.error("Error querying tab for segment siphoning:", e);
+            }
+        }
+
+        if (!targetTabId) {
+            alert("Cannot determine active tab to start stream recording.");
+            return;
+        }
+
+        // 2. Register download task with daemon
+        let daemonId = null;
+        let targetFolder = folder;
+        try {
+            const regResp = await chrome.runtime.sendMessage({
+                cmd: "AddDownload",
+                ...{
+                    url: url,
+                    folder: folder,
+                    mode: "siphon",
+                    engine: "siphon_record",
+                    userAgent: globalUserAgent
+                }
+            });
+            const regData = regResp;
+            daemonId = regData.id || null;
+            if (regData.folder) {
+                targetFolder = regData.folder;
+            }
+        } catch(e) {
+            alert("Failed to connect to JADMan daemon. Is it running?");
+            console.error("JADMan Error:", e);
+            return;
+        }
+
+        if (!daemonId) {
+            alert("Failed to register download task with JADMan daemon.");
+            return;
+        }
+
+        // 3. Send message to content script of the tab to start segment siphoning
+        chrome.tabs.sendMessage(targetTabId, {
+            action: "start_segment_recording",
+            daemonId: daemonId,
+            filename: "captured_stream.mp4",
+            url: url
+        });
+
+        statusDiv.innerText = `✅ Segment Recording started in tab.`;
+        setTimeout(() => window.close(), 1500);
+        return;
+    }
 
     if (useWebGL) {
         statusDiv.innerText = "🎨 Starting WebGL Canvas Capture...";

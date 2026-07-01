@@ -103,7 +103,7 @@ impl QueueManager {
             "ytdlp" => DownloadEngine::Ytdlp,
             "chrome_native" => DownloadEngine::ChromeNative,
             "camoufox" => DownloadEngine::Camoufox,
-            "browser_fetch" => DownloadEngine::BrowserFetch,
+            "browser_fetch" | "siphon_record" => DownloadEngine::BrowserFetch,
             "debugger_capture" => DownloadEngine::DebuggerCapture,
             "webgl_capture" => DownloadEngine::WebGLCapture,
             _ => DownloadEngine::Aria2c,

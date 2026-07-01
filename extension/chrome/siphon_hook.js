@@ -91,6 +91,16 @@
         return shadow;
     });
 
+    // FORCE PRESERVE DRAWING BUFFER FOR WEBGL (WebGL Canvas Capture support)
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = createStealthProxy(originalGetContext, function(type, attributes) {
+        if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+            attributes = attributes || {};
+            attributes.preserveDrawingBuffer = true;
+        }
+        return originalGetContext.call(this, type, attributes);
+    });
+
     // HIJACK FETCH
     const originalFetch = window.fetch;
     window.fetch = createStealthProxy(originalFetch, async function(...args) {
