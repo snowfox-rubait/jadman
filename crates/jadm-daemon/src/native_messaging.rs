@@ -55,15 +55,58 @@ pub async fn run_native_host() -> Result<()> {
             }
         });
 
-    // Connect to the daemon
+    // Connect to the daemon (spawn if not running)
     #[cfg(unix)]
-    let mut stream = UnixStream::connect(&socket_path).await
-        .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon: {}", e))?;
+    let mut stream = match UnixStream::connect(&socket_path).await {
+        Ok(s) => s,
+        Err(_) => {
+            let exe_path = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("/usr/bin/jadm-daemon"));
+            let mut cmd = std::process::Command::new(&exe_path);
+            cmd.stdin(std::process::Stdio::null());
+            cmd.stdout(std::process::Stdio::null());
+            cmd.stderr(std::process::Stdio::null());
+            
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(0);
+            
+            match cmd.spawn() {
+                Ok(_) => {
+                    // Give it a moment to initialize the socket and check/spawn aria2c
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                    UnixStream::connect(&socket_path).await
+                        .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon after auto-launch: {}", e))?
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Failed to auto-spawn JADMan daemon: {}", e));
+                }
+            }
+        }
+    };
+
     #[cfg(not(unix))]
-    let mut stream = TcpStream::connect("127.0.0.1:6245").await
-        .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon: {}", e))?;
+    let mut stream = match TcpStream::connect("127.0.0.1:6245").await {
+        Ok(s) => s,
+        Err(_) => {
+            let exe_path = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("jadm-daemon"));
+            let mut cmd = std::process::Command::new(&exe_path);
+            cmd.stdin(std::process::Stdio::null());
+            cmd.stdout(std::process::Stdio::null());
+            cmd.stderr(std::process::Stdio::null());
+            
+            match cmd.spawn() {
+                Ok(_) => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                    TcpStream::connect("127.0.0.1:6245").await
+                        .map_err(|e| anyhow::anyhow!("Failed to connect to JADMan daemon after auto-launch: {}", e))?
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Failed to auto-spawn JADMan daemon: {}", e));
+                }
+            }
+        }
+    };
     
-    // We split the Unix stream to handle read/write simultaneously
+    // We split the stream to handle read/write simultaneously
     let (reader, mut writer) = stream.split();
     let mut unix_reader = BufReader::new(reader).lines();
 

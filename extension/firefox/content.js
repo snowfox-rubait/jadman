@@ -767,7 +767,6 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     }
 
     // Create wrapper element with a randomized tag name
-    const wrapperTagName = 'x-' + RANDOM_PREFIX + '-wrap';
     const wrapper = nativeCreateElement.call(document, wrapperTagName);
     wrapper.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647;`;
     
