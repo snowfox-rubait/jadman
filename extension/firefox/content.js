@@ -211,7 +211,7 @@ function stopSegmentRecording() {
 
 // 1. Force enable right-click with extreme prejudice
 function unblockRightClick() {
-    const events = ["contextmenu", "copy", "cut", "paste", "selectstart"];
+    const events = ["contextmenu"];
     events.forEach(name => {
         window.addEventListener(name, function(e) {
             e.stopPropagation();
@@ -363,9 +363,24 @@ chrome.storage.local.get(['buttonPosition', 'downloadMode', 'isPaused'], (res) =
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.isPaused) {
-        isPaused = !!changes.isPaused.newValue;
-        updatePauseState(isPaused);
+    if (area === 'local') {
+        if (changes.isPaused) {
+            isPaused = !!changes.isPaused.newValue;
+            updatePauseState(isPaused);
+        }
+        if (changes.downloadMode) {
+            currentDownloadMode = changes.downloadMode.newValue;
+            document.documentElement.setAttribute('data-jadman-mode', currentDownloadMode);
+            if (currentDownloadMode === "ghost") {
+                while (activeMediaWrappers.length > 0) {
+                    const item = activeMediaWrappers.pop();
+                    try { nativeRemove.call(item.wrapper); } catch(e) { item.wrapper.remove(); }
+                    item.targetElement.dataset[RANDOM_PREFIX + 'Injected'] = "false";
+                }
+            } else {
+                scanMedia();
+            }
+        }
     }
 });
 
