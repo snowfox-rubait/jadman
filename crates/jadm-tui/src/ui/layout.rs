@@ -579,8 +579,8 @@ fn render_detail(f: &mut Frame, app: &App, area: Rect) {
         .title(Span::styled(" Preview ", Style::default().fg(theme::TEXT_DIM)))
         .style(theme::base_style());
 
-    // Locate the filename of the main media file if database has None
-    let main_filename = dl.filename.clone().or_else(|| {
+    // Locate the filename of the main media file if database has None or empty
+    let main_filename = dl.filename.as_ref().filter(|f| !f.is_empty()).cloned().or_else(|| {
         matching_files.iter()
             .find(|f_item| f_item.name.contains("(Video)"))
             .map(|f_item| {
@@ -1030,7 +1030,8 @@ fn get_download_files(dl: &jadm_common::types::Download) -> Vec<DownloadFileDeta
     use std::path::Path;
     let mut files = Vec::new();
     
-    let stem = if let Some(ref filename) = dl.filename {
+    let filename_opt = dl.filename.as_ref().filter(|f| !f.is_empty());
+    let stem = if let Some(filename) = filename_opt {
         let p = Path::new(filename);
         p.file_stem()
             .and_then(|s| s.to_str())
@@ -1097,7 +1098,7 @@ fn get_download_files(dl: &jadm_common::types::Download) -> Vec<DownloadFileDeta
 
     // Add virtual assets if they are requested but not found as standalone files on disk
     if !main_file_found {
-        let expected_name = dl.filename.clone().unwrap_or_else(|| format!("{}.(ext)", stem));
+        let expected_name = filename_opt.cloned().unwrap_or_else(|| format!("{}.(ext)", stem));
         let status = match dl.status {
             jadm_common::types::DownloadStatus::Done => "Done".to_string(),
             jadm_common::types::DownloadStatus::Failed => "Failed".to_string(),
