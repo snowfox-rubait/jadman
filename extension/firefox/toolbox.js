@@ -22,10 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Load active settings from storage
-    chrome.storage.local.get(['buttonPosition', 'downloadMode', 'isPaused'], (res) => {
+    chrome.storage.local.get(['buttonPosition', 'downloadMode', 'activeGhostEngine', 'siphonRecordSegments'], (res) => {
         if (res.buttonPosition) {
             document.getElementById('select-btn-pos').value = res.buttonPosition;
         }
+        if (res.activeGhostEngine) {
+            document.getElementById('select-ghost-engine').value = res.activeGhostEngine;
+        }
+        document.getElementById('toggle-segment-siphon').checked = !!res.siphonRecordSegments;
         
         // Mode mappings
         const mode = res.downloadMode || 'general';
@@ -38,22 +42,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Populate active tab information
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs[0];
-        if (tab) {
-            activeTabId = tab.id;
-            activeTabUrl = tab.url;
-            refreshSniffedStreams();
-            
-            // Check if element inspector is currently active on this tab
-            chrome.tabs.sendMessage(activeTabId, { action: "check_inspector_state" }, (response) => {
-                if (response && response.active) {
-                    inspectorActive = true;
-                    updateInspectorButtonUI();
-                }
-            });
-        }
-    });
+    const params = new URLSearchParams(window.location.search);
+    const queryTabId = params.get("tabId");
+    if (queryTabId) {
+        activeTabId = parseInt(queryTabId, 10);
+        chrome.tabs.get(activeTabId, (tab) => {
+            if (tab) {
+                activeTabUrl = tab.url;
+                refreshSniffedStreams();
+                
+                // Check if element inspector is currently active on this tab
+                chrome.tabs.sendMessage(activeTabId, { action: "check_inspector_state" }, (response) => {
+                    if (response && response.active) {
+                        inspectorActive = true;
+                        updateInspectorButtonUI();
+                    }
+                });
+            }
+        });
+    }
 
     // Set listener for settings changes
     document.getElementById('select-btn-pos').addEventListener('change', (e) => {
@@ -75,8 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('select-ghost-engine').addEventListener('change', (e) => {
         const engine = e.target.value;
-        // Map selected option to corresponding settings or bypass flags
         chrome.storage.local.set({ activeGhostEngine: engine });
+    });
+
+    document.getElementById('toggle-segment-siphon').addEventListener('change', (e) => {
+        chrome.storage.local.set({ siphonRecordSegments: e.target.checked });
     });
 
     // Setup CDM Click Handlers
