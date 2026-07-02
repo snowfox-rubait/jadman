@@ -118,9 +118,9 @@ async function openJadmPopup(url, filename = null, mime = null) {
         console.error("Error querying active tab for popup:", e);
     }
 
-    chrome.windows.create({
+    chrome.tabs.create({
         url: `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}`,
-        type: "popup", width: 450, height: 350, focused: true
+        active: true
     });
 }
 
@@ -437,7 +437,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; 
     } else if (message.action === "open_grabber") {
         triggerFloat();
-        chrome.windows.create({ url: `grabber.html?tabId=${sender.tab.id}`, type: "popup", width: 800, height: 600 });
+        chrome.tabs.create({ url: `grabber.html?tabId=${sender.tab.id}`, active: true });
     } else if (message.action === "open_grabber_for_tab") {
         triggerFloat();
         const tid = message.tabId;
@@ -455,7 +455,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }));
         const combined = [...list, ...siphoned];
         chrome.storage.local.set({ grabbedLinks: combined }, () => {
-            chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600 });
+            chrome.tabs.create({ url: `grabber.html?tabId=${tid}`, active: true });
         });
     } else if (message.action === "get_tab_discovery") {
         const tid = message.tabId > 0 ? message.tabId : sender.tab?.id;
@@ -502,7 +502,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const dataList = results?.[0]?.result || [];
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600 });
+                chrome.tabs.create({ url: `grabber.html?tabId=${tid}`, active: true });
             });
         });
     } else if (message.action === "grab_assets_for_tab") {
@@ -520,7 +520,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const dataList = results?.[0]?.result || [];
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600 });
+                chrome.tabs.create({ url: `grabber.html?tabId=${tid}`, active: true });
             });
         });
     }
@@ -549,7 +549,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === "jadman-open-toolbox") {
-        chrome.windows.create({ url: `toolbox.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+        chrome.tabs.create({ url: `toolbox.html?tabId=${tab.id}`, active: true });
         return;
     }
 
@@ -564,7 +564,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         if (dataList.length > 0) {
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+                chrome.tabs.create({ url: `grabber.html?tabId=${tab.id}`, active: true });
             });
         }
     };
@@ -629,13 +629,13 @@ chrome.action.onClicked.addListener((tab) => {
     if (list.length > 0) {
         chrome.storage.local.set({ grabbedLinks: list }, () => {
             triggerFloat();
-            chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+            chrome.tabs.create({ url: `grabber.html?tabId=${tab.id}`, active: true });
         });
     } else {
         if (!tab.url || tab.url.startsWith("chrome://") || tab.url.startsWith("edge://") || tab.url.startsWith("about:")) {
             chrome.storage.local.set({ grabbedLinks: [] }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+                chrome.tabs.create({ url: `grabber.html?tabId=${tab.id}`, active: true });
             });
             return;
         }
@@ -656,11 +656,11 @@ chrome.action.onClicked.addListener((tab) => {
             if (results?.[0]?.result?.length > 0) {
                 chrome.storage.local.set({ grabbedLinks: results[0].result }, () => {
                     triggerFloat();
-                    chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+                    chrome.tabs.create({ url: `grabber.html?tabId=${tab.id}`, active: true });
                 });
             } else {
                 chrome.storage.local.set({ grabbedLinks: [] }, () => {
-                    chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600 });
+                    chrome.tabs.create({ url: `grabber.html?tabId=${tab.id}`, active: true });
                 });
             }
         });
