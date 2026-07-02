@@ -980,6 +980,12 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     if (currentDownloadMode === "ghost") return;
     if (!targetElement || targetElement.tagName === "BODY" || attempt > 5) return;
     
+    // Guard to prevent duplicate stacking inside same components
+    const injectedAttr = 'data-' + RANDOM_PREFIX.toLowerCase() + '-injected';
+    if (targetElement.closest(`[${injectedAttr}="true"]`) || targetElement.querySelector(`[${injectedAttr}="true"]`)) {
+        return;
+    }
+    
     const wrapperTagName = 'x-' + RANDOM_PREFIX + '-wrap';
     const existingWrapper = targetElement.querySelector(wrapperTagName);
     if (existingWrapper) {
@@ -1096,6 +1102,8 @@ function scanMedia() {
             injectMediaIcon(media, window.location.href, false);
             mediaCount++;
         });
+        updateGlobalFloatingButton(mediaCount);
+        return;
     }
 
     document.querySelectorAll("video, audio").forEach(media => {

@@ -389,7 +389,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
             referer: params.get("referer") || null
         }
     }).then(response => {
-        if (response && response.status === "ok") {
+        if (response && !response.error) {
             statusDiv.innerText = "Download successfully added to queue!";
             setTimeout(() => window.close(), 1000);
         } else {
