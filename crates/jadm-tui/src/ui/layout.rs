@@ -967,27 +967,32 @@ fn mini_progress_bar(percent: u8, width: usize) -> Line<'static> {
 
 /// Truncate a filename intelligently, preserving the extension.
 fn truncate_filename(name: &str, max: usize) -> String {
-    if name.len() <= max {
+    let char_count = name.chars().count();
+    if char_count <= max {
         return name.to_string();
     }
     // Find the last dot for extension
     if let Some(dot_pos) = name.rfind('.') {
         let ext = &name[dot_pos..]; // includes the dot
-        if ext.len() < max.saturating_sub(4) {
-            let stem_len = max - ext.len() - 2; // "…" takes ~1 char
-            return format!("{}…{}", &name[..stem_len], ext);
+        let ext_char_count = ext.chars().count();
+        if ext_char_count < max.saturating_sub(4) {
+            let stem_char_limit = max - ext_char_count - 1; // 1 char for '…'
+            let stem: String = name.chars().take(stem_char_limit).collect();
+            return format!("{}…{}", stem, ext);
         }
     }
     // No extension or extension too long — just truncate
-    format!("{}…", &name[..max.saturating_sub(1)])
+    let truncated: String = name.chars().take(max.saturating_sub(1)).collect();
+    format!("{}…", truncated)
 }
 
 /// Truncate a string with ellipsis.
 fn truncate_str(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!("{}…", &s[..max.saturating_sub(1)])
+        let truncated: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{}…", truncated)
     }
 }
 
