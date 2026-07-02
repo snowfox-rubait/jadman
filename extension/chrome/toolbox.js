@@ -46,12 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Load active settings from storage
-    chrome.storage.local.get(['buttonPosition', 'downloadMode', 'activeGhostEngine', 'siphonRecordSegments'], (res) => {
+    chrome.storage.local.get(['buttonPosition', 'downloadMode', 'activeGhostEngine', 'siphonRecordSegments', 'windowSpawnMode'], (res) => {
         if (res.buttonPosition) {
             document.getElementById('select-btn-pos').value = res.buttonPosition;
         }
         if (res.activeGhostEngine) {
             document.getElementById('select-ghost-engine').value = res.activeGhostEngine;
+        }
+        if (res.windowSpawnMode) {
+            document.getElementById('select-window-mode').value = res.windowSpawnMode;
         }
         document.getElementById('toggle-segment-siphon').checked = !!res.siphonRecordSegments;
         
@@ -93,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeTabId) {
             chrome.tabs.sendMessage(activeTabId, { action: "update_position", position }).catch(() => {});
         }
+    });
+
+    document.getElementById('select-window-mode').addEventListener('change', (e) => {
+        chrome.storage.local.set({ windowSpawnMode: e.target.value });
     });
 
     // Mode Toggle Switches

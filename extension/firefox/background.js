@@ -104,6 +104,19 @@ async function triggerFloat() {
     sendNativeMessage({ cmd: "Float" });
 }
 
+function spawnJadmPage(url, width = 800, height = 600) {
+    chrome.storage.local.get(['windowSpawnMode'], (res) => {
+        const mode = res.windowSpawnMode || 'popup';
+        if (mode === 'tab') {
+            chrome.tabs.create({ url: url, active: true });
+        } else if (mode === 'normal') {
+            chrome.windows.create({ url: url, type: "normal", focused: true });
+        } else {
+            chrome.windows.create({ url: url, type: "popup", width: width, height: height, focused: true });
+        }
+    });
+}
+
 async function openJadmPopup(url, filename = null, mime = null) {
     if (isBlacklisted(url)) return;
     await triggerFloat();
@@ -118,10 +131,8 @@ async function openJadmPopup(url, filename = null, mime = null) {
         console.error("Error querying active tab for popup:", e);
     }
 
-    chrome.windows.create({
-        url: `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}`,
-        type: "popup", width: 450, height: 380, focused: true
-    });
+    const targetUrl = `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}`;
+    spawnJadmPage(targetUrl, 450, 380);
 }
 
 // 1. UNIVERSAL NETWORK SNIFFER
@@ -437,7 +448,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; 
     } else if (message.action === "open_grabber") {
         triggerFloat();
-        chrome.windows.create({ url: `grabber.html?tabId=${sender.tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+        spawnJadmPage(`grabber.html?tabId=${sender.tab.id}`, 800, 600);
     } else if (message.action === "open_grabber_for_tab") {
         triggerFloat();
         const tid = message.tabId;
@@ -455,7 +466,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }));
         const combined = [...list, ...siphoned];
         chrome.storage.local.set({ grabbedLinks: combined }, () => {
-            chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600, focused: true });
+            spawnJadmPage(`grabber.html?tabId=${tid}`, 800, 600);
         });
     } else if (message.action === "get_tab_discovery") {
         const tid = message.tabId > 0 ? message.tabId : sender.tab?.id;
@@ -502,7 +513,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const dataList = results?.[0]?.result || [];
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600, focused: true });
+                spawnJadmPage(`grabber.html?tabId=${tid}`, 800, 600);
             });
         });
     } else if (message.action === "grab_assets_for_tab") {
@@ -520,7 +531,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const dataList = results?.[0]?.result || [];
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tid}`, type: "popup", width: 800, height: 600, focused: true });
+                spawnJadmPage(`grabber.html?tabId=${tid}`, 800, 600);
             });
         });
     }
@@ -549,7 +560,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === "jadman-open-toolbox") {
-        chrome.windows.create({ url: `toolbox.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+        spawnJadmPage(`toolbox.html?tabId=${tab.id}`, 850, 620);
         return;
     }
 
@@ -564,7 +575,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         if (dataList.length > 0) {
             chrome.storage.local.set({ grabbedLinks: dataList }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+                spawnJadmPage(`grabber.html?tabId=${tab.id}`, 800, 600);
             });
         }
     };
@@ -629,13 +640,13 @@ chrome.action.onClicked.addListener((tab) => {
     if (list.length > 0) {
         chrome.storage.local.set({ grabbedLinks: list }, () => {
             triggerFloat();
-            chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+            spawnJadmPage(`grabber.html?tabId=${tab.id}`, 800, 600);
         });
     } else {
         if (!tab.url || tab.url.startsWith("chrome://") || tab.url.startsWith("edge://") || tab.url.startsWith("about:")) {
             chrome.storage.local.set({ grabbedLinks: [] }, () => {
                 triggerFloat();
-                chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+                spawnJadmPage(`grabber.html?tabId=${tab.id}`, 800, 600);
             });
             return;
         }
@@ -656,11 +667,11 @@ chrome.action.onClicked.addListener((tab) => {
             if (results?.[0]?.result?.length > 0) {
                 chrome.storage.local.set({ grabbedLinks: results[0].result }, () => {
                     triggerFloat();
-                    chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+                    spawnJadmPage(`grabber.html?tabId=${tab.id}`, 800, 600);
                 });
             } else {
                 chrome.storage.local.set({ grabbedLinks: [] }, () => {
-                    chrome.windows.create({ url: `grabber.html?tabId=${tab.id}`, type: "popup", width: 800, height: 600, focused: true });
+                    spawnJadmPage(`grabber.html?tabId=${tab.id}`, 800, 600);
                 });
             }
         });

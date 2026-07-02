@@ -150,6 +150,19 @@
       <input type="checkbox" id="compressVideo" />
       Compress Video (H.264 MP4 conversion)
     </label>
+    <label class="checkbox-item" id="liveSupportWrap">
+      <input type="checkbox" id="liveSupport" />
+      Live Stream Support (.m3u8/.mpd)
+    </label>
+    <div id="liveFromStartWrap" style="display: none; margin-left: 24px; margin-top: 4px; flex-direction: column; gap: 4px;">
+      <label class="checkbox-item">
+        <input type="checkbox" id="liveFromStart" />
+        Download live stream from the start
+      </label>
+      <div id="liveFromStartWarning" style="display: none; color: #ff9900; font-size: 11px; margin-top: 2px;">
+        ⚠️ Warning: Downloading from start can consume massive bandwidth and take a very long time!
+      </div>
+    </div>
   </div>
   
   <div class="actions">

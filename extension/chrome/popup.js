@@ -198,6 +198,30 @@ async function init() {
 
 init();
 
+const liveSupport = document.getElementById("liveSupport");
+const liveFromStart = document.getElementById("liveFromStart");
+const liveFromStartWrap = document.getElementById("liveFromStartWrap");
+const liveFromStartWarning = document.getElementById("liveFromStartWarning");
+
+if (liveSupport) {
+    liveSupport.addEventListener("change", (e) => {
+        if (liveFromStartWrap) {
+            liveFromStartWrap.style.display = e.target.checked ? "flex" : "none";
+        }
+        if (!e.target.checked && liveFromStart) {
+            liveFromStart.checked = false;
+            if (liveFromStartWarning) liveFromStartWarning.style.display = "none";
+        }
+    });
+}
+if (liveFromStart) {
+    liveFromStart.addEventListener("change", (e) => {
+        if (liveFromStartWarning) {
+            liveFromStartWarning.style.display = e.target.checked ? "block" : "none";
+        }
+    });
+}
+
 document.getElementById("cancelBtn").addEventListener("click", () => {
     window.close();
 });
@@ -381,6 +405,8 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
             embed_chapters: embedChapters,
             compress_video: compressVideo,
             download_playlist: downloadPlaylist,
+            live_support: liveSupport ? liveSupport.checked : false,
+            live_from_start: liveFromStart ? liveFromStart.checked : false,
             cookies: globalCookieString || null,
             netscape_cookies: globalNetscapeCookies || null,
             userAgent: globalUserAgent,
