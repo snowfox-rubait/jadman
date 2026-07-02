@@ -43,6 +43,7 @@ impl ClipboardMonitor {
                             compress_video: false,
                             download_playlist: false,
                             referer: None,
+                            write_description: false,
                         };
                         let _ = self.queue_manager.add_download(params).await;
                     }

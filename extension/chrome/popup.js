@@ -269,6 +269,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     const writeSubs = document.getElementById("writeSubs").checked;
     const embedThumbnail = document.getElementById("embedThumbnail").checked;
     const embedChapters = document.getElementById("embedChapters").checked;
+    const writeDescription = document.getElementById("writeDescription").checked;
     const compressVideo = document.getElementById("compressVideo").checked;
     const downloadPlaylist = document.getElementById("downloadPlaylist") ? document.getElementById("downloadPlaylist").checked : false;
 
@@ -291,6 +292,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
         write_subs: writeSubs,
         embed_thumbnail: embedThumbnail,
         embed_chapters: embedChapters,
+        write_description: writeDescription,
         compress_video: compressVideo,
         download_playlist: downloadPlaylist,
         live_support: liveSupport ? liveSupport.checked : false,

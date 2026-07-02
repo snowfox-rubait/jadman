@@ -31,6 +31,7 @@ pub struct AddDownloadParams {
     pub compress_video: bool,
     pub download_playlist: bool,
     pub referer: Option<String>,
+    pub write_description: bool,
 }
 
 
@@ -158,6 +159,7 @@ impl QueueManager {
             compress_video: params.compress_video,
             download_playlist: params.download_playlist,
             referer: params.referer,
+            write_description: params.write_description,
         };
 
         {
@@ -182,7 +184,7 @@ impl QueueManager {
             }
         };
 
-        let (url, folder, engine, format, cookies, netscape_cookies, user_agent, ghost_mode, write_subs, embed_thumbnail, embed_chapters, live_from_start, compress_video, download_playlist, referer) = {
+        let (url, folder, engine, format, cookies, netscape_cookies, user_agent, ghost_mode, write_subs, embed_thumbnail, embed_chapters, live_from_start, compress_video, download_playlist, referer, write_description) = {
             let dl = self.downloads.get(&id).ok_or_else(|| anyhow!("Download not found"))?;
             (
                 dl.url.clone(),
@@ -200,6 +202,7 @@ impl QueueManager {
                 dl.compress_video,
                 dl.download_playlist,
                 dl.referer.clone(),
+                dl.write_description,
             )
         };
 
@@ -271,7 +274,7 @@ impl QueueManager {
             DownloadEngine::Ytdlp => {
                 let manager = self.clone();
                 let handle = tokio::spawn(async move {
-                    run_ytdlp(&url, &folder, format, cookies, netscape_cookies, user_agent, ghost_mode, write_subs, embed_thumbnail, embed_chapters, live_from_start, compress_video, download_playlist, referer,
+                    run_ytdlp(&url, &folder, format, cookies, netscape_cookies, user_agent, ghost_mode, write_subs, embed_thumbnail, embed_chapters, live_from_start, compress_video, download_playlist, referer, write_description,
                         |pid| {
                             manager.ytdlp_pids.insert(id, pid);
                         },

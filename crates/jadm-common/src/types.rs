@@ -100,6 +100,8 @@ pub struct Download {
     pub download_playlist: bool,
     #[serde(default)]
     pub referer: Option<String>,
+    #[serde(default)]
+    pub write_description: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

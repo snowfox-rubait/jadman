@@ -139,6 +139,7 @@ async fn handle_add_url_mode(key: KeyEvent, app: &mut App, rpc: &RpcClient) {
                         compress_video: None,
                         download_playlist: None,
                         referer: None,
+                        write_description: None,
                     })
                     .await;
                 match result {

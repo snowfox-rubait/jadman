@@ -8,8 +8,8 @@ pub async fn insert_download(pool: &SqlitePool, download: &Download) -> Result<(
         "INSERT INTO downloads (
             id, url, filename, size, downloaded, status, category, folder, 
             resumable, connections, engine, mime_type, cookies, netscape_cookies, user_agent, error, added_at, completed_at, last_tried_at,
-            write_subs, embed_thumbnail, embed_chapters, ghost_mode, format, live_support, live_from_start, compress_video, download_playlist, referer
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)"
+            write_subs, embed_thumbnail, embed_chapters, ghost_mode, format, live_support, live_from_start, compress_video, download_playlist, referer, write_description
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30)"
     )
     .bind(download.id.to_string())
     .bind(&download.url)
@@ -40,6 +40,7 @@ pub async fn insert_download(pool: &SqlitePool, download: &Download) -> Result<(
     .bind(download.compress_video)
     .bind(download.download_playlist)
     .bind(&download.referer)
+    .bind(download.write_description)
     .execute(pool)
     .await?;
     
@@ -53,7 +54,7 @@ pub async fn update_download(pool: &SqlitePool, download: &Download) -> Result<(
             filename = ?2, size = ?3, downloaded = ?4, status = ?5, 
             mime_type = ?6, cookies = ?7, netscape_cookies = ?8, user_agent = ?9, error = ?10, completed_at = ?11, last_tried_at = ?12,
             write_subs = ?13, embed_thumbnail = ?14, embed_chapters = ?15, ghost_mode = ?16, format = ?17, engine = ?18, live_support = ?19, live_from_start = ?20, compress_video = ?21,
-            download_playlist = ?22, referer = ?23
+            download_playlist = ?22, referer = ?23, write_description = ?24
         WHERE id = ?1"
     )
     .bind(download.id.to_string())
@@ -79,6 +80,7 @@ pub async fn update_download(pool: &SqlitePool, download: &Download) -> Result<(
     .bind(download.compress_video)
     .bind(download.download_playlist)
     .bind(&download.referer)
+    .bind(download.write_description)
     .execute(pool)
     .await?;
     Ok(())
@@ -139,6 +141,7 @@ pub async fn get_all_downloads(pool: &SqlitePool) -> Result<Vec<Download>> {
             compress_video: row.try_get::<bool, _>("compress_video").unwrap_or(false),
             download_playlist: row.try_get::<bool, _>("download_playlist").unwrap_or(false),
             referer: row.try_get("referer").ok(),
+            write_description: row.try_get::<bool, _>("write_description").unwrap_or(false),
         };
         downloads.push(dl);
     }

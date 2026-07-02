@@ -38,6 +38,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -76,6 +77,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -126,6 +128,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -190,6 +193,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -246,6 +250,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -286,6 +291,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();
@@ -356,6 +362,7 @@ mod tests {
             compress_video: false,
             download_playlist: false,
             referer: None,
+            write_description: false,
         };
 
         let (id, _) = manager.add_download(params).await.unwrap();

@@ -177,6 +177,7 @@ document.getElementById('downloadBtn').onclick = async () => {
   const writeSubs = document.getElementById("writeSubs").checked;
   const embedThumbnail = document.getElementById("embedThumbnail").checked;
   const embedChapters = document.getElementById("embedChapters").checked;
+  const writeDescription = document.getElementById("writeDescription").checked;
   const compressVideo = document.getElementById("compressVideo").checked;
   const liveSuppVal = liveSupport ? liveSupport.checked : false;
   const liveFromStartVal = liveFromStart ? liveFromStart.checked : false;
@@ -220,6 +221,7 @@ document.getElementById('downloadBtn').onclick = async () => {
                     write_subs: writeSubs,
                     embed_thumbnail: embedThumbnail,
                     embed_chapters: embedChapters,
+                    write_description: writeDescription,
                     compress_video: compressVideo,
                     live_support: liveSuppVal,
                     live_from_start: liveFromStartVal

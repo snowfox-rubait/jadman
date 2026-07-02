@@ -47,6 +47,8 @@ pub enum Request {
         download_playlist: Option<bool>,
         #[serde(default)]
         referer: Option<String>,
+        #[serde(default)]
+        write_description: Option<bool>,
     },
     GetFormats {
         url: String,

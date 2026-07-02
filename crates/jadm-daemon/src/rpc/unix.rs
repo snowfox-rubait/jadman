@@ -86,6 +86,7 @@ impl UnixRpcServer {
                             compress_video,
                             download_playlist,
                             referer,
+                            write_description,
                             ..
                         } => {
                             let default_folder = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()) + "/Downloads";
@@ -109,6 +110,7 @@ impl UnixRpcServer {
                                 compress_video: compress_video.unwrap_or(false),
                                 download_playlist: download_playlist.unwrap_or(false),
                                 referer,
+                                write_description: write_description.unwrap_or(false),
                             };
                             match queue_manager.add_download(params).await {
                                 Ok((id, folder)) => Response::Ok { 
