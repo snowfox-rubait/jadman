@@ -1018,12 +1018,8 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
         e.preventDefault(); e.stopPropagation(); 
         const currentUrl = icon.dataset.mediaUrl || window.location.href;
         if (chrome.runtime?.id) {
-            if (isGrabberFallback) {
-                chrome.runtime.sendMessage({ action: "open_grabber" });
-            } else {
-                const mime = targetElement.tagName === "VIDEO" ? "video/mp4" : (targetElement.tagName === "AUDIO" ? "audio/mpeg" : null);
-                chrome.runtime.sendMessage({ action: "request_download", url: currentUrl, mime: mime }); 
-            }
+            const mime = targetElement.tagName === "VIDEO" ? "video/mp4" : (targetElement.tagName === "AUDIO" ? "audio/mpeg" : null);
+            chrome.runtime.sendMessage({ action: "request_download", url: currentUrl, mime: mime }); 
         }
     };
 
