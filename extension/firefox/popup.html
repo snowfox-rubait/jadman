@@ -123,6 +123,25 @@
   <label for="folder">Destination Directory:</label>
   <input type="text" id="folder" value="/home/rubait/Downloads" />
   
+  <label for="mode">Download Mode:</label>
+  <select id="mode">
+    <option value="general">General Downloader (aria2c)</option>
+    <option value="siphon">Siphon Mode (Cookies & UA capture)</option>
+    <option value="ghost">Ghost Bypass Mode (Stealth Headless & Native TLS)</option>
+  </select>
+
+  <div id="ghostEngineWrap" style="display: none;">
+    <label for="ghostEngine">Ghost Bypass Engine:</label>
+    <select id="ghostEngine">
+      <option value="chrome_native">⚡ Chrome Native Downloader</option>
+      <option value="browser_fetch">🌐 Browser Fetch (In-Tab Streaming)</option>
+      <option value="debugger_capture">🪲 Debugger Network Socket Capture</option>
+      <option value="webgl_capture">🎨 WebGL Canvas Frame Recorder</option>
+      <option value="ytdlp">🔧 yt-dlp Impersonate (Platform extractors)</option>
+      <option value="camoufox">🦊 Camoufox Headless (Stealth browser fallback)</option>
+    </select>
+  </div>
+
   <label for="quality" id="qualityLabel">Quality (Scanning formats...):</label>
   <select id="quality">
     <option value="">Best Quality (Default)</option>

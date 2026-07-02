@@ -115,32 +115,26 @@ function buildNetscape(cookies) {
     return out;
 }
 
-async function init() {
-    // Restore settings from local storage
-    const stored = await new Promise(resolve => {
-        chrome.storage.local.get(['downloadMode', 'activeGhostEngine'], (res) => resolve(res));
-    });
-    
-    activeMode = stored.downloadMode || 'siphon';
-    activeGhostEngine = stored.activeGhostEngine || 'ytdlp';
+const liveSupport = document.getElementById("liveSupport");
+const liveFromStart = document.getElementById("liveFromStart");
+const liveFromStartWrap = document.getElementById("liveFromStartWrap");
+const liveFromStartWarning = document.getElementById("liveFromStartWarning");
 
-    globalCookieString = "";
-    globalNetscapeCookies = "";
+async function recalculateModeState() {
+    activeMode = document.getElementById("mode").value;
+    activeGhostEngine = document.getElementById("ghostEngine").value;
 
-    // Capture session cookies for siphon or ghost modes
-    if (activeMode === "siphon" || activeMode === "ghost") {
-        const rawCookies = await getCookiesForUrl(url);
-        if (rawCookies.length > 0) {
-            globalCookieString = rawCookies.map(c => `${c.name}=${c.value}`).join("; ");
-            globalNetscapeCookies = buildNetscape(rawCookies);
-        }
+    const ghostEngineWrap = document.getElementById("ghostEngineWrap");
+    if (ghostEngineWrap) {
+        ghostEngineWrap.style.display = activeMode === "ghost" ? "block" : "none";
     }
 
+    const liveSupportWrap = document.getElementById("liveSupportWrap");
     const useNative = activeMode === "ghost" && activeGhostEngine === "chrome_native";
     const useBrowserFetch = activeMode === "ghost" && activeGhostEngine === "browser_fetch";
     const useDebugger = activeMode === "ghost" && activeGhostEngine === "debugger_capture";
     const useWebGL = activeMode === "ghost" && activeGhostEngine === "webgl_capture";
-    
+
     if (useNative || useBrowserFetch || useDebugger || useWebGL) {
         statusDiv.innerText = useNative
             ? "⚡ Chrome Native mode — uses Chrome's real TLS. Quality selection not applicable."
@@ -151,10 +145,32 @@ async function init() {
                   : "🎨 WebGL Canvas Capture mode — records canvas frames to daemon. Quality selection not applicable."));
         if (qualityLabel) qualityLabel.innerText = "Quality (Not Applicable):";
         qualitySelect.disabled = true;
+        qualitySelect.innerHTML = '<option value="">Best Quality (Default)</option>';
+        if (liveSupportWrap) liveSupportWrap.style.display = "none";
+        if (liveFromStartWrap) liveFromStartWrap.style.display = "none";
         return;
     }
 
+    if (liveSupportWrap) liveSupportWrap.style.display = "flex";
+    if (liveSupport && liveSupport.checked && liveFromStartWrap) {
+        liveFromStartWrap.style.display = "flex";
+    }
+
+    // Refresh cookies if siphon or ghost
+    globalCookieString = "";
+    globalNetscapeCookies = "";
+    if (activeMode === "siphon" || activeMode === "ghost") {
+        const rawCookies = await getCookiesForUrl(url);
+        if (rawCookies.length > 0) {
+            globalCookieString = rawCookies.map(c => `${c.name}=${c.value}`).join("; ");
+            globalNetscapeCookies = buildNetscape(rawCookies);
+        }
+    }
+
     statusDiv.innerText = "Checking available qualities...";
+    qualitySelect.disabled = true;
+    qualitySelect.innerHTML = '<option value="">Best Quality (Default)</option>';
+
     chrome.runtime.sendMessage({
         cmd: "GetFormats",
         ...{ 
@@ -175,7 +191,7 @@ async function init() {
         if (data.status === "ok" && data.formats && data.formats.length > 0) {
             statusDiv.innerText = "Qualities loaded.";
             if(qualityLabel) qualityLabel.innerText = "Quality:";
-            qualitySelect.innerHTML = '<option value="">Best (Default)</option>';
+            qualitySelect.innerHTML = '<option value="">Best Quality (Default)</option>';
             data.formats.reverse().forEach(fmt => {
                 const opt = document.createElement("option");
                 opt.value = fmt.id;
@@ -196,12 +212,35 @@ async function init() {
     });
 }
 
-init();
+async function init() {
+    // Restore settings from local storage
+    const stored = await new Promise(resolve => {
+        chrome.storage.local.get(['downloadMode', 'activeGhostEngine'], (res) => resolve(res));
+    });
+    
+    const modeVal = stored.downloadMode || 'siphon';
+    const engineVal = stored.activeGhostEngine || 'ytdlp';
 
-const liveSupport = document.getElementById("liveSupport");
-const liveFromStart = document.getElementById("liveFromStart");
-const liveFromStartWrap = document.getElementById("liveFromStartWrap");
-const liveFromStartWarning = document.getElementById("liveFromStartWarning");
+    document.getElementById("mode").value = modeVal;
+    document.getElementById("ghostEngine").value = engineVal;
+
+    document.getElementById("mode").addEventListener("change", recalculateModeState);
+    document.getElementById("ghostEngine").addEventListener("change", recalculateModeState);
+
+    globalCookieString = "";
+    globalNetscapeCookies = "";
+
+    // Capture initial session cookies
+    const rawCookies = await getCookiesForUrl(url);
+    if (rawCookies.length > 0) {
+        globalCookieString = rawCookies.map(c => `${c.name}=${c.value}`).join("; ");
+        globalNetscapeCookies = buildNetscape(rawCookies);
+    }
+
+    await recalculateModeState();
+}
+
+init();
 
 if (liveSupport) {
     liveSupport.addEventListener("change", (e) => {
@@ -234,11 +273,37 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     const embedChapters = document.getElementById("embedChapters").checked;
     const compressVideo = document.getElementById("compressVideo").checked;
     const downloadPlaylist = document.getElementById("downloadPlaylist") ? document.getElementById("downloadPlaylist").checked : false;
-    
-    const useDebugger = activeMode === "ghost" && activeGhostEngine === "debugger_capture";
-    const useWebGL = activeMode === "ghost" && activeGhostEngine === "webgl_capture";
-    const useNative = activeMode === "ghost" && activeGhostEngine === "chrome_native";
-    const useBrowserFetch = activeMode === "ghost" && activeGhostEngine === "browser_fetch";
+
+    // Read current mode and engine values selected by user in the popup
+    const popupMode = document.getElementById("mode").value;
+    const popupEngine = document.getElementById("ghostEngine").value;
+
+    const useDebugger = popupMode === "ghost" && popupEngine === "debugger_capture";
+    const useWebGL = popupMode === "ghost" && popupEngine === "webgl_capture";
+    const useNative = popupMode === "ghost" && popupEngine === "chrome_native";
+    const useBrowserFetch = popupMode === "ghost" && popupEngine === "browser_fetch";
+
+    const reqEngine = useNative ? "chrome_native" : (popupMode === "ghost" ? popupEngine : null);
+
+    // Assemble the complete download options package so ALL engines receive all settings
+    const fullParams = {
+        url: url,
+        folder: folder,
+        format: format || null,
+        write_subs: writeSubs,
+        embed_thumbnail: embedThumbnail,
+        embed_chapters: embedChapters,
+        compress_video: compressVideo,
+        download_playlist: downloadPlaylist,
+        live_support: liveSupport ? liveSupport.checked : false,
+        live_from_start: liveFromStart ? liveFromStart.checked : false,
+        cookies: globalCookieString || null,
+        netscape_cookies: globalNetscapeCookies || null,
+        userAgent: globalUserAgent,
+        mode: popupMode,
+        engine: reqEngine,
+        referer: params.get("referer") || null
+    };
 
     if (useWebGL) {
         statusDiv.innerText = "🎨 Starting WebGL Canvas Capture...";
@@ -263,17 +328,10 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
             return;
         }
 
-        // Register WebGL capture task with daemon
         try {
             const regResp = await chrome.runtime.sendMessage({
                 cmd: "AddDownload",
-                ...{
-                    url: url,
-                    folder: folder,
-                    mode: "ghost",
-                    engine: "webgl_capture",
-                    userAgent: globalUserAgent
-                }
+                ...fullParams
             });
             
             const daemonId = regResp.id || null;
@@ -318,13 +376,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
         try {
             const regResp = await chrome.runtime.sendMessage({
                 cmd: "AddDownload",
-                ...{
-                    url: url,
-                    folder: folder,
-                    mode: "ghost",
-                    engine: "debugger_capture",
-                    userAgent: globalUserAgent
-                }
+                ...fullParams
             });
             const daemonId = regResp.id || null;
             if (daemonId) {
@@ -366,13 +418,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
         try {
             const regResp = await chrome.runtime.sendMessage({
                 cmd: "AddDownload",
-                ...{
-                    url: url,
-                    folder: folder,
-                    mode: "ghost",
-                    engine: "browser_fetch",
-                    userAgent: globalUserAgent
-                }
+                ...fullParams
             });
             const daemonId = regResp.id || null;
             if (daemonId) {
@@ -392,28 +438,10 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     }
 
     statusDiv.innerText = "Sending download task to JADMan daemon...";
-    const reqEngine = useNative ? "chrome_native" : (activeMode === "ghost" ? activeGhostEngine : null);
 
     chrome.runtime.sendMessage({
         cmd: "AddDownload",
-        ...{
-            url: url,
-            folder: folder,
-            format: format || null,
-            write_subs: writeSubs,
-            embed_thumbnail: embedThumbnail,
-            embed_chapters: embedChapters,
-            compress_video: compressVideo,
-            download_playlist: downloadPlaylist,
-            live_support: liveSupport ? liveSupport.checked : false,
-            live_from_start: liveFromStart ? liveFromStart.checked : false,
-            cookies: globalCookieString || null,
-            netscape_cookies: globalNetscapeCookies || null,
-            userAgent: globalUserAgent,
-            mode: activeMode,
-            engine: reqEngine,
-            referer: params.get("referer") || null
-        }
+        ...fullParams
     }).then(response => {
         if (response && !response.error) {
             statusDiv.innerText = "Download successfully added to queue!";

@@ -218,10 +218,18 @@ function refreshSniffedStreams() {
         
         const allItems = [];
         if (response.urls) {
-            response.urls.forEach(url => allItems.push({ url, type: 'Network URL', label: 'NET' }));
+            response.urls.forEach(obj => {
+                if (obj && obj.url) {
+                    allItems.push({ url: obj.url, type: 'Network URL', label: 'NET' });
+                }
+            });
         }
         if (response.siphoned) {
-            response.siphoned.forEach(s => allItems.push({ url: s.url, type: s.mime || 'Segment Stream', label: 'SIPHON' }));
+            response.siphoned.forEach(obj => {
+                if (obj && obj.url) {
+                    allItems.push({ url: obj.url, type: obj.mime || 'Segment Stream', label: 'SIPHON' });
+                }
+            });
         }
         
         countEl.innerText = allItems.length;
