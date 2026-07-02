@@ -7,9 +7,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
             if (typeof callback === 'function') {
                 return originalSendMessage.call(chrome.runtime, message, (response) => {
                     const err = chrome.runtime.lastError;
-                    if (!err) {
-                        callback(response);
-                    }
+                    callback(response);
                 });
             } else {
                 const p = originalSendMessage.call(chrome.runtime, message);
@@ -85,6 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateInspectorButtonUI();
                     }
                 });
+
+                // Poll for new sniffed streams periodically when Page Investigator is active
+                setInterval(() => {
+                    if (selectedTabPane === "pane-investigator") {
+                        refreshSniffedStreams();
+                    }
+                }, 2000);
             }
         });
     }
@@ -181,10 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-inspector-btn').addEventListener('click', () => {
         if (!activeTabId) return;
         inspectorActive = !inspectorActive;
-        chrome.tabs.sendMessage(activeTabId, { action: "toggle_element_inspector", active: inspectorActive }, (response) => {
-            updateInspectorButtonUI();
-        });
+        updateInspectorButtonUI();
+        chrome.tabs.sendMessage(activeTabId, { action: "toggle_element_inspector", active: inspectorActive });
     });
+
+    // Handle investigator refresh button if any
+    document.getElementById('refresh-streams-btn')?.addEventListener('click', refreshSniffedStreams);
 });
 
 function updateInspectorButtonUI() {
@@ -253,10 +260,7 @@ function refreshSniffedStreams() {
             
             el.querySelector('button').addEventListener('click', (e) => {
                 const targetUrl = decodeURIComponent(e.target.dataset.url);
-                chrome.windows.create({
-                    url: `popup.html?url=${encodeURIComponent(targetUrl)}`,
-                    type: "popup", width: 450, height: 380, focused: true
-                });
+                chrome.runtime.sendMessage({ action: "request_download", url: targetUrl });
             });
             
             container.appendChild(el);

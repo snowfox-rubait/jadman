@@ -22,9 +22,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
             if (typeof callback === 'function') {
                 return originalSendMessage.call(chrome.runtime, message, (response) => {
                     const err = chrome.runtime.lastError;
-                    if (!err) {
-                        callback(response);
-                    }
+                    callback(response);
                 });
             } else {
                 const p = originalSendMessage.call(chrome.runtime, message);
