@@ -67,12 +67,50 @@ async function loadData() {
 
 loadData();
 
+const liveSupport = document.getElementById("liveSupport");
+const liveFromStart = document.getElementById("liveFromStart");
+const liveFromStartWrap = document.getElementById("liveFromStartWrap");
+const liveFromStartWarning = document.getElementById("liveFromStartWarning");
+const modeSelect = document.getElementById("mode");
+const ghostEngineSelect = document.getElementById("ghostEngine");
+const ghostEngineWrap = document.getElementById("ghostEngineWrap");
+
+function updateUI() {
+    const activeMode = modeSelect.value;
+    ghostEngineWrap.style.display = activeMode === "ghost" ? "flex" : "none";
+}
+
+modeSelect.addEventListener("change", updateUI);
+if (liveSupport) {
+    liveSupport.addEventListener("change", (e) => {
+        if (liveFromStartWrap) {
+            liveFromStartWrap.style.display = e.target.checked ? "flex" : "none";
+        }
+        if (!e.target.checked && liveFromStart) {
+            liveFromStart.checked = false;
+            if (liveFromStartWarning) liveFromStartWarning.style.display = "none";
+        }
+    });
+}
+if (liveFromStart) {
+    liveFromStart.addEventListener("change", (e) => {
+        if (liveFromStartWarning) {
+            liveFromStartWarning.style.display = e.target.checked ? "inline" : "none";
+        }
+    });
+}
+
+chrome.storage.local.get(['downloadMode', 'activeGhostEngine'], (res) => {
+    if (res.downloadMode) modeSelect.value = res.downloadMode;
+    if (res.activeGhostEngine) ghostEngineSelect.value = res.activeGhostEngine;
+    updateUI();
+});
+
 function renderLinks() {
   const filter = document.getElementById('extensionFilter').value.toLowerCase();
   const list = document.getElementById('linkList');
   const stats = document.getElementById('stats');
   
-  // Group by priority
   const manifests = allLinks.filter(l => l.priority === 'MANIFEST');
   const normal = allLinks.filter(l => !l.priority || l.priority === 'NORMAL');
   const segments = allLinks.filter(l => l.priority === 'SEGMENT');
@@ -134,8 +172,19 @@ document.getElementById('downloadBtn').onclick = async () => {
   btn.disabled = true;
   btn.innerText = "Sending...";
 
-  // Get default folder from environment logic (daemon side usually handles it but we can provide home)
-  const folder = "/home/rubait/Downloads"; 
+  const folder = document.getElementById("folder").value;
+  const activeMode = modeSelect.value;
+  const activeGhostEngine = ghostEngineSelect.value;
+
+  const writeSubs = document.getElementById("writeSubs").checked;
+  const embedThumbnail = document.getElementById("embedThumbnail").checked;
+  const embedChapters = document.getElementById("embedChapters").checked;
+  const compressVideo = document.getElementById("compressVideo").checked;
+  const liveSuppVal = liveSupport ? liveSupport.checked : false;
+  const liveFromStartVal = liveFromStart ? liveFromStart.checked : false;
+
+  const useNative = activeMode === "ghost" && activeGhostEngine === "chrome_native";
+  const reqEngine = useNative ? "chrome_native" : (activeMode === "ghost" ? activeGhostEngine : null);
 
   const BATCH_SIZE = 5;
   const total = selectedCheckboxes.length;
@@ -147,9 +196,18 @@ document.getElementById('downloadBtn').onclick = async () => {
         const priority = cb.dataset.priority;
         
         try {
-            // Get cookies for each URL (might be different domains)
             const nc = await new Promise(r => chrome.runtime.sendMessage({ action: "get_netscape_cookies", url }, r));
             
+            let cookieStr = "";
+            try {
+                const rawCookies = await new Promise(r => {
+                    chrome.cookies.getAll({ url }, r);
+                });
+                if (rawCookies && rawCookies.length > 0) {
+                    cookieStr = rawCookies.map(c => `${c.name}=${c.value}`).join("; ");
+                }
+            } catch(e) {}
+
             await chrome.runtime.sendMessage({
                 cmd: "AddDownload",
                 ...{ 
@@ -157,7 +215,16 @@ document.getElementById('downloadBtn').onclick = async () => {
                     folder: folder,
                     userAgent: navigator.userAgent,
                     netscape_cookies: nc || null,
-                    format: priority === 'MANIFEST' ? 'best' : null
+                    cookies: cookieStr || null,
+                    format: priority === 'MANIFEST' ? 'best' : null,
+                    mode: activeMode,
+                    engine: reqEngine,
+                    write_subs: writeSubs,
+                    embed_thumbnail: embedThumbnail,
+                    embed_chapters: embedChapters,
+                    compress_video: compressVideo,
+                    live_support: liveSuppVal,
+                    live_from_start: liveFromStartVal
                 }
             });
             count++;

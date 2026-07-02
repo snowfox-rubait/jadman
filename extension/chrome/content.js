@@ -1110,6 +1110,16 @@ function scanMedia() {
         const src = media.src || media.currentSrc;
         const isBlob = src && src.startsWith("blob:");
         const isGrabberFallback = isBlob || !src;
+
+        if (src && !isBlob) {
+            chrome.runtime.sendMessage({ action: "register_dom_stream", url: src });
+        }
+        media.querySelectorAll("source").forEach(source => {
+            if (source.src && !source.src.startsWith("blob:")) {
+                chrome.runtime.sendMessage({ action: "register_dom_stream", url: source.src });
+            }
+        });
+
         let container = media.closest('.player, [class*="player"], [id*="player"], .video-container');
         if (!container) container = media.parentElement;
         if (container) {

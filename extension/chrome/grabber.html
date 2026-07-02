@@ -103,6 +103,58 @@
     <button class="btn-secondary" id="selectAll">Select All</button>
     <button class="btn-secondary" id="selectNone">None</button>
   </div>
+  <div id="grabberSettings" style="padding: 15px; background: #161616; border-bottom: 1px solid #333; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+        <label for="folder" style="font-size: 12px; color: #aaa;">Destination Directory:</label>
+        <input type="text" id="folder" value="/home/rubait/Downloads" style="padding: 6px; background: #262626; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;" />
+      </div>
+      <div style="width: 180px; display: flex; flex-direction: column; gap: 4px;">
+        <label for="mode" style="font-size: 12px; color: #aaa;">Download Mode:</label>
+        <select id="mode" style="padding: 6px; background: #262626; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
+          <option value="general">General (aria2c)</option>
+          <option value="siphon">Siphon Mode</option>
+          <option value="ghost">Ghost Bypass Mode</option>
+        </select>
+      </div>
+      <div id="ghostEngineWrap" style="width: 220px; display: none; flex-direction: column; gap: 4px;">
+        <label for="ghostEngine" style="font-size: 12px; color: #aaa;">Ghost Bypass Engine:</label>
+        <select id="ghostEngine" style="padding: 6px; background: #262626; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
+          <option value="chrome_native">⚡ Chrome Native Downloader</option>
+          <option value="browser_fetch">🌐 Browser Fetch (In-Tab)</option>
+          <option value="debugger_capture">🪲 Debugger Capture</option>
+          <option value="webgl_capture">🎨 WebGL Canvas Capture</option>
+          <option value="ytdlp">🔧 yt-dlp Impersonate</option>
+          <option value="camoufox">🦊 Camoufox Stealth</option>
+        </select>
+      </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px;">
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="writeSubs" /> Subtitles
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="embedThumbnail" /> Embed Thumbnail
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="embedChapters" /> Embed Chapters
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="compressVideo" /> Compress Video (FFmpeg)
+      </label>
+      <label id="liveSupportWrap" style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="liveSupport" /> Live Stream Support
+      </label>
+      <div id="liveFromStartWrap" style="display: none; align-items: center; gap: 6px; grid-column: span 3;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+          <input type="checkbox" id="liveFromStart" /> Download from start
+        </label>
+        <span id="liveFromStartWarning" style="display: none; color: #ff9900; font-size: 11px;">⚠️ Warning: Heavy bandwidth/time</span>
+      </div>
+    </div>
+  </div>
+
   <div class="list-container" id="linkList">
     <!-- Links will be injected here -->
   </div>

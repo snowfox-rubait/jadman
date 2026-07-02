@@ -446,6 +446,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         } catch(e) { sendResponse(null); }
         return true; 
+    } else if (message.action === "register_dom_stream") {
+        const tid = sender.tab?.id;
+        if (tid !== undefined && tid >= 0 && message.url) {
+            if (!tabDiscoveryMap[tid]) tabDiscoveryMap[tid] = new Set();
+            if (!tabDiscoveryMap[tid].has(message.url)) {
+                tabDiscoveryMap[tid].add(message.url);
+                
+                const list = Array.from(tabDiscoveryMap[tid]).map(u => ({
+                    url: u,
+                    text: u.split('/').pop().split('?')[0] || "Detected Stream"
+                }));
+                chrome.storage.local.set({ grabbedLinks: list });
+                
+                const count = list.length + (siphonedData[tid]?.filter(i => i.priority === 'MANIFEST').length || 0);
+                chrome.action.setBadgeBackgroundColor({ color: '#ff0000', tabId: tid });
+                chrome.action.setBadgeText({ text: count.toString(), tabId: tid });
+            }
+        }
     } else if (message.action === "open_grabber") {
         triggerFloat();
         spawnJadmPage(`grabber.html?tabId=${sender.tab.id}`, 800, 600);
