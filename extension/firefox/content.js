@@ -13,6 +13,28 @@ if (document.documentElement) {
     document.documentElement.setAttribute('data-jadman-token', JADMAN_COMM_TOKEN);
 }
 
+// Safe chrome.runtime.sendMessage wrapper to prevent "No SW" / "Context Invalidated" warnings
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    const originalSendMessage = chrome.runtime.sendMessage;
+    chrome.runtime.sendMessage = function(message, callback) {
+        if (!chrome.runtime?.id) return;
+        try {
+            if (typeof callback === 'function') {
+                originalSendMessage.call(chrome.runtime, message, (response) => {
+                    const err = chrome.runtime.lastError;
+                    if (!err) {
+                        callback(response);
+                    }
+                });
+            } else {
+                originalSendMessage.call(chrome.runtime, message, () => {
+                    const _ = chrome.runtime.lastError;
+                });
+            }
+        } catch(e) {}
+    };
+}
+
 // Randomized DOM classes/IDs for footprint masking
 const RANDOM_PREFIX = 'jadm_' + Math.floor(Math.random() * 1000000).toString(36);
 const FLOATING_MEDIA_BTN_ID = RANDOM_PREFIX + '_float_btn';

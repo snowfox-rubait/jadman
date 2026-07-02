@@ -1,3 +1,25 @@
+// Safe chrome.runtime.sendMessage wrapper to prevent "No SW" / "Context Invalidated" warnings
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    const originalSendMessage = chrome.runtime.sendMessage;
+    chrome.runtime.sendMessage = function(message, callback) {
+        if (!chrome.runtime?.id) return;
+        try {
+            if (typeof callback === 'function') {
+                originalSendMessage.call(chrome.runtime, message, (response) => {
+                    const err = chrome.runtime.lastError;
+                    if (!err) {
+                        callback(response);
+                    }
+                });
+            } else {
+                originalSendMessage.call(chrome.runtime, message, () => {
+                    const _ = chrome.runtime.lastError;
+                });
+            }
+        } catch(e) {}
+    };
+}
+
 // JADMan Menu UI Controller
 
 let activeTabId = null;
