@@ -87,6 +87,22 @@ async fn handle_normal_mode(key: KeyEvent, app: &mut App, rpc: &RpcClient) {
             }
         }
 
+        // 'v' / 'V' = copy HTTP stream link to clipboard
+        KeyCode::Char('v') | KeyCode::Char('V') => {
+            if let Some(dl) = app.selected_download() {
+                let stream_url = format!("http://127.0.0.1:6246/stream/{}", dl.download.id);
+                if let Ok(mut cb) = arboard::Clipboard::new() {
+                    if cb.set_text(stream_url.clone()).is_ok() {
+                        app.status_message = Some("Copied media stream URL to clipboard!".to_string());
+                    } else {
+                        app.status_message = Some(format!("Stream link: {}", stream_url));
+                    }
+                } else {
+                    app.status_message = Some(format!("Stream link: {}", stream_url));
+                }
+            }
+        }
+
         // Add URL dialog
         KeyCode::Char('a') => {
             app.input_mode = InputMode::AddUrl;

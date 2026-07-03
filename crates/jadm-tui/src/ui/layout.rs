@@ -149,6 +149,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
             ("D", "Delete+File"),
             ("a", "Add URL"),
             ("c", "Cookie Password"),
+            ("v", "Copy Stream Link"),
             ("?", "Help"),
         ],
     };
@@ -907,6 +908,7 @@ fn render_help_overlay(f: &mut Frame) {
         Line::from(Span::raw("")),
         Line::from(Span::styled("  General", section_style)),
         help_line("    c", "Set Cookie Master Password", key_style, desc_style),
+        help_line("    v", "Copy HTTP stream link", key_style, desc_style),
         help_line("    ?", "Toggle this help", key_style, desc_style),
         help_line("    q", "Quit", key_style, desc_style),
     ];
