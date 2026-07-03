@@ -11,6 +11,7 @@ mod config;
 mod desktop;
 mod native_messaging;
 mod proxy;
+mod lua;
 
 use std::sync::Arc;
 use crate::db::schema::init_db;

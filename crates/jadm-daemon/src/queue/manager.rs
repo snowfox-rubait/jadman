@@ -53,10 +53,16 @@ pub struct QueueManager {
     active_permits: DashMap<Uuid, OwnedSemaphorePermit>,
     download_metrics: DashMap<Uuid, (u64, Option<u64>)>, // (rate_bytes, eta_secs)
     pub cookie_jar_password: Arc<tokio::sync::Mutex<Option<String>>>,
+    pub lua_manager: Option<Arc<crate::lua::ScriptManager>>,
 }
 
 impl QueueManager {
     pub fn new(db_pool: SqlitePool, aria2: Arc<dyn Aria2ClientTrait>, max_concurrent_downloads: usize) -> Self {
+        let proj_dirs = directories::ProjectDirs::from("com", "jadm", "jadm");
+        let lua_manager = proj_dirs.and_then(|pd| {
+            crate::lua::ScriptManager::new(pd.config_dir()).ok()
+        }).map(Arc::new);
+
         Self {
             downloads: DashMap::new(),
             db_pool,
@@ -69,6 +75,7 @@ impl QueueManager {
             active_permits: DashMap::new(),
             download_metrics: DashMap::new(),
             cookie_jar_password: Arc::new(tokio::sync::Mutex::new(None)),
+            lua_manager,
         }
     }
 
@@ -89,6 +96,14 @@ impl QueueManager {
     }
 
     pub async fn add_download(self: &Arc<Self>, params: AddDownloadParams) -> Result<(Uuid, String)> {
+        let mut params = params;
+        if let Some(lm) = &self.lua_manager {
+            if let Ok(Some(resolved_url)) = lm.debrid_resolve(&params.url).await {
+                println!("[JADMan Lua Debrid] Resolved direct link: {}", resolved_url);
+                params.url = resolved_url;
+            }
+        }
+
         let mut engine_str = if let Some(ref eng) = params.engine {
             eng.clone()
         } else {
@@ -355,8 +370,19 @@ impl QueueManager {
         }
 
         self.active_permits.insert(id, permit);
-        if let Some(mut dl) = self.downloads.get_mut(&id) {
+        let dl_cloned = if let Some(mut dl) = self.downloads.get_mut(&id) {
             dl.status = DownloadStatus::Downloading;
+            Some(dl.clone())
+        } else {
+            None
+        };
+        if let Some(dl) = dl_cloned {
+            if let Some(lm) = &self.lua_manager {
+                let lm_clone = lm.clone();
+                tokio::spawn(async move {
+                    let _ = lm_clone.trigger_hook("on_download_start", dl).await;
+                });
+            }
         }
         
         Ok(())
@@ -444,10 +470,18 @@ impl QueueManager {
                                     _ => dl_entry.status.clone(),
                                 };
                                 
-                                if dl_entry.status == DownloadStatus::Done || dl_entry.status == DownloadStatus::Cancelled || dl_entry.status == DownloadStatus::Failed {
-                                    self.active_permits.remove(id);
-                                    self.download_metrics.remove(id);
-                                }
+                                if dl_entry.status == DownloadStatus::Done {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_complete_hook(dl_clone);
+                                 } else if dl_entry.status == DownloadStatus::Failed {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_error_hook(dl_clone);
+                                 }
+
+                                 if dl_entry.status == DownloadStatus::Done || dl_entry.status == DownloadStatus::Cancelled || dl_entry.status == DownloadStatus::Failed {
+                                     self.active_permits.remove(id);
+                                     self.download_metrics.remove(id);
+                                 }
                         }
                 }
                 DownloadEngine::Ytdlp => {
@@ -493,10 +527,18 @@ impl QueueManager {
                                     }
                                 }
                                 
-                                if dl_entry.status != DownloadStatus::Queued {
-                                    self.active_permits.remove(id);
-                                    self.download_metrics.remove(id);
-                                }
+                                if dl_entry.status == DownloadStatus::Done {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_complete_hook(dl_clone);
+                                 } else if dl_entry.status == DownloadStatus::Failed {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_error_hook(dl_clone);
+                                 }
+
+                                 if dl_entry.status != DownloadStatus::Queued {
+                                     self.active_permits.remove(id);
+                                     self.download_metrics.remove(id);
+                                 }
                             }
                         }
                 }
@@ -547,8 +589,16 @@ impl QueueManager {
                                         dl_entry.error = Some("Camoufox download failed".to_string());
                                     }
                                 }
-                                self.active_permits.remove(id);
-                                self.download_metrics.remove(id);
+                                 if dl_entry.status == DownloadStatus::Done {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_complete_hook(dl_clone);
+                                 } else if dl_entry.status == DownloadStatus::Failed {
+                                     let dl_clone = dl_entry.clone();
+                                     self.trigger_error_hook(dl_clone);
+                                 }
+
+                                 self.active_permits.remove(id);
+                                 self.download_metrics.remove(id);
                             }
                         }
                 }
@@ -820,7 +870,7 @@ impl QueueManager {
     }
 
     pub async fn mark_download_done(&self, id: &Uuid, final_filename: Option<String>, final_size: Option<u64>) {
-        if let Some(mut dl) = self.downloads.get_mut(id) {
+        let dl_cloned = if let Some(mut dl) = self.downloads.get_mut(id) {
             dl.status = DownloadStatus::Done;
             dl.completed_at = Some(Utc::now());
             if let Some(f) = final_filename { dl.filename = Some(f); }
@@ -830,8 +880,14 @@ impl QueueManager {
             }
             dl.cookies = None;
             dl.netscape_cookies = None;
-        }
+            Some(dl.clone())
+        } else {
+            None
+        };
         self.download_metrics.remove(id);
+        if let Some(dl) = dl_cloned {
+            self.trigger_complete_hook(dl);
+        }
     }
 
     pub async fn move_siphoned_file(&self, source: &str, destination: &str, daemon_id: Option<String>) -> Result<()> {
@@ -977,6 +1033,24 @@ impl QueueManager {
         }
 
         Ok(())
+    }
+
+    fn trigger_complete_hook(&self, download: Download) {
+        if let Some(lm) = &self.lua_manager {
+            let lm_clone = lm.clone();
+            tokio::spawn(async move {
+                let _ = lm_clone.trigger_hook("on_download_complete", download).await;
+            });
+        }
+    }
+
+    fn trigger_error_hook(&self, download: Download) {
+        if let Some(lm) = &self.lua_manager {
+            let lm_clone = lm.clone();
+            tokio::spawn(async move {
+                let _ = lm_clone.trigger_hook("on_download_error", download).await;
+            });
+        }
     }
 }
 
