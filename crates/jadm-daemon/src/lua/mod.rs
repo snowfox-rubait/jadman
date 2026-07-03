@@ -55,65 +55,90 @@ impl ScriptManager {
                     return;
                 }
 
-                println!("[JADMan Lua Worker] Worker thread started successfully.");
-
-                while let Some(req) = receiver.recv().await {
-                    match req {
-                        LuaRequest::TriggerHook { event_name, download } => {
-                            if let Ok(download_lua) = lua.to_value(&download) {
-                                let fut = lua.load(r#"
-                                    local event_name, download = ...
-                                    local callbacks = jadm._hooks[event_name]
-                                    if callbacks then
-                                        for _, cb in ipairs(callbacks) do
-                                            pcall(cb, download)
-                                        end
-                                    end
-                                "#)
-                                .call_async::<_, ()>((event_name, download_lua));
-                                if let Err(e) = fut.await {
-                                    eprintln!("[JADMan Lua Worker] trigger_hook failed: {}", e);
+                // Gather background loops as non-static Futures
+                let mut loop_futures = Vec::new();
+                if let Ok(jadm_table) = lua.globals().get::<_, LuaTable>("jadm") {
+                    if let Ok(loops) = jadm_table.get::<_, LuaTable>("_loops") {
+                        if let Ok(len) = loops.len() {
+                            for i in 1..=len {
+                                if let Ok(cb) = loops.get::<_, LuaFunction>(i) {
+                                    let cb_clone = cb.clone();
+                                    loop_futures.push(async move {
+                                        let fut = cb_clone.call_async::<_, ()>(());
+                                        if let Err(e) = fut.await {
+                                            eprintln!("[JADMan Lua Worker] Background loop failed: {}", e);
+                                        }
+                                    });
                                 }
                             }
                         }
-                        LuaRequest::DebridResolve { url, responder } => {
-                            let fut = lua.load(r#"
-                                local url = ...
-                                for _, resolver in ipairs(jadm._debrid_resolvers) do
-                                    local ok, can_handle = pcall(resolver.can_handle, url)
-                                    if ok and can_handle then
-                                        local ok2, res = pcall(resolver.resolve, url)
-                                        if ok2 and res then
-                                            return res
-                                        end
-                                    end
-                                end
-                                return nil
-                            "#)
-                            .call_async::<_, Option<String>>(url);
-                            let res = fut.await.unwrap_or(None);
-                            let _ = responder.send(res);
-                        }
-                        LuaRequest::RecoveryResolve { url, error_code, responder } => {
-                            let fut = lua.load(r#"
-                                local url, error_code = ...
-                                for _, resolver in ipairs(jadm._recovery_resolvers) do
-                                    local ok, can_handle = pcall(resolver.can_handle, url, error_code)
-                                    if ok and can_handle then
-                                        local ok2, res = pcall(resolver.resolve, url, error_code)
-                                        if ok2 and res then
-                                            return res
-                                        end
-                                    end
-                                end
-                                return nil
-                            "#)
-                            .call_async::<_, Option<String>>((url, error_code));
-                            let res = fut.await.unwrap_or(None);
-                            let _ = responder.send(res);
-                        }
                     }
                 }
+
+                println!("[JADMan Lua Worker] Worker thread started successfully.");
+
+                let loops_runner = futures::future::join_all(loop_futures);
+                let message_runner = async {
+                    while let Some(req) = receiver.recv().await {
+                        match req {
+                            LuaRequest::TriggerHook { event_name, download } => {
+                                if let Ok(download_lua) = lua.to_value(&download) {
+                                    let fut = lua.load(r#"
+                                        local event_name, download = ...
+                                        local callbacks = jadm._hooks[event_name]
+                                        if callbacks then
+                                            for _, cb in ipairs(callbacks) do
+                                                pcall(cb, download)
+                                            end
+                                        end
+                                    "#)
+                                    .call_async::<_, ()>((event_name, download_lua));
+                                    if let Err(e) = fut.await {
+                                        eprintln!("[JADMan Lua Worker] trigger_hook failed: {}", e);
+                                    }
+                                }
+                            }
+                            LuaRequest::DebridResolve { url, responder } => {
+                                let fut = lua.load(r#"
+                                    local url = ...
+                                    for _, resolver in ipairs(jadm._debrid_resolvers) do
+                                        local ok, can_handle = pcall(resolver.can_handle, url)
+                                        if ok and can_handle then
+                                            local ok2, res = pcall(resolver.resolve, url)
+                                            if ok2 and res then
+                                                return res
+                                            end
+                                        end
+                                    end
+                                    return nil
+                                "#)
+                                .call_async::<_, Option<String>>(url);
+                                let res = fut.await.unwrap_or(None);
+                                let _ = responder.send(res);
+                            }
+                            LuaRequest::RecoveryResolve { url, error_code, responder } => {
+                                let fut = lua.load(r#"
+                                    local url, error_code = ...
+                                    for _, resolver in ipairs(jadm._recovery_resolvers) do
+                                        local ok, can_handle = pcall(resolver.can_handle, url, error_code)
+                                        if ok and can_handle then
+                                            local ok2, res = pcall(resolver.resolve, url, error_code)
+                                            if ok2 and res then
+                                                return res
+                                            end
+                                        end
+                                    end
+                                    return nil
+                                "#)
+                                .call_async::<_, Option<String>>((url, error_code));
+                                let res = fut.await.unwrap_or(None);
+                                let _ = responder.send(res);
+                            }
+                        }
+                    }
+                };
+
+                tokio::join!(loops_runner, message_runner);
             });
         });
 
@@ -205,6 +230,12 @@ fn init_bindings(lua: &Lua, qm_cell: Arc<tokio::sync::OnceCell<Weak<QueueManager
             .summary(&title)
             .body(&message)
             .show();
+        Ok(())
+    })?)?;
+
+    // Asynchronous non-blocking sleep for Lua loops
+    jadm_rust.set("sleep", lua.create_async_function(|_, ms: u64| async move {
+        tokio::time::sleep(tokio::time::Duration::from_millis(ms)).await;
         Ok(())
     })?)?;
 
@@ -311,6 +342,11 @@ fn init_bindings(lua: &Lua, qm_cell: Arc<tokio::sync::OnceCell<Weak<QueueManager
         jadm._recovery_resolvers = {}
         jadm.register_recovery = function(resolver)
             table.insert(jadm._recovery_resolvers, resolver)
+        end
+
+        jadm._loops = {}
+        jadm.register_loop = function(callback)
+            table.insert(jadm._loops, callback)
         end
     "#).exec()?;
 
