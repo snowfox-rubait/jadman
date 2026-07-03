@@ -202,6 +202,9 @@ async fn main() -> Result<()> {
 
     // 3. Initialize Queue Manager
     let queue_manager = Arc::new(QueueManager::new(pool, aria2_client, config.max_concurrent_downloads));
+    if let Some(lm) = &queue_manager.lua_manager {
+        lm.set_queue_manager(Arc::downgrade(&queue_manager));
+    }
     queue_manager.load_from_db().await?;
 
     // 4. Initialize Scheduler Engine

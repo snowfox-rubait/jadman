@@ -1,11 +1,14 @@
 use std::path::Path;
 use anyhow::Result;
 use mlua::prelude::*;
-use jadm_common::types::Download;
+use jadm_common::types::{Download, DownloadStatus};
 use tokio::sync::{mpsc, oneshot};
+use std::sync::{Arc, Weak};
+use crate::queue::manager::{QueueManager, AddDownloadParams};
 
 pub struct ScriptManager {
     sender: mpsc::UnboundedSender<LuaRequest>,
+    queue_manager: Arc<tokio::sync::OnceCell<Weak<QueueManager>>>,
 }
 
 enum LuaRequest {
@@ -31,6 +34,8 @@ impl ScriptManager {
         std::fs::create_dir_all(&plugins_dir)?;
 
         let plugins_dir_clone = plugins_dir.clone();
+        let queue_manager = Arc::new(tokio::sync::OnceCell::new());
+        let qm_cell_clone = queue_manager.clone();
 
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -41,7 +46,7 @@ impl ScriptManager {
             rt.block_on(async move {
                 let lua = Lua::new();
 
-                if let Err(e) = init_bindings(&lua) {
+                if let Err(e) = init_bindings(&lua, qm_cell_clone) {
                     eprintln!("[JADMan Lua Worker] Failed to init bindings: {}", e);
                     return;
                 }
@@ -112,7 +117,12 @@ impl ScriptManager {
             });
         });
 
-        Ok(Self { sender })
+        Ok(Self { sender, queue_manager })
+    }
+
+    /// Sets the weak reference back to the primary QueueManager.
+    pub fn set_queue_manager(&self, qm: Weak<QueueManager>) {
+        let _ = self.queue_manager.set(qm);
     }
 
     /// Triggers all registered callbacks for a specific lifecycle event.
@@ -150,7 +160,7 @@ impl ScriptManager {
     }
 }
 
-fn init_bindings(lua: &Lua) -> Result<()> {
+fn init_bindings(lua: &Lua, qm_cell: Arc<tokio::sync::OnceCell<Weak<QueueManager>>>) -> Result<()> {
     let globals = lua.globals();
     
     let jadm_rust = lua.create_table()?;
@@ -196,6 +206,85 @@ fn init_bindings(lua: &Lua) -> Result<()> {
             .body(&message)
             .show();
         Ok(())
+    })?)?;
+
+    // Add download queue operations for Lua automation
+    let qm_add = qm_cell.clone();
+    jadm_rust.set("add_download", lua.create_function(move |_, (url, folder, category): (String, Option<String>, Option<String>)| {
+        if let Some(weak) = qm_add.get() {
+            if let Some(qm) = weak.upgrade() {
+                let default_folder = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()) + "/Downloads";
+                let folder = folder.unwrap_or(default_folder);
+                let params = AddDownloadParams {
+                    url,
+                    folder,
+                    category,
+                    format: None,
+                    mime_type: None,
+                    cookies: None,
+                    write_subs: false,
+                    embed_thumbnail: false,
+                    embed_chapters: false,
+                    netscape_cookies: None,
+                    user_agent: None,
+                    ghost_mode: false,
+                    engine: Some("aria2".to_string()),
+                    live_support: false,
+                    live_from_start: false,
+                    compress_video: false,
+                    download_playlist: false,
+                    referer: None,
+                    write_description: false,
+                };
+                let qm_clone = qm.clone();
+                tokio::spawn(async move {
+                    let _ = qm_clone.add_download(params).await;
+                });
+            }
+        }
+        Ok(())
+    })?)?;
+
+    let qm_limit = qm_cell.clone();
+    jadm_rust.set("set_limit", lua.create_function(move |_, limit: u32| {
+        if let Some(weak) = qm_limit.get() {
+            if let Some(qm) = weak.upgrade() {
+                let qm_clone = qm.clone();
+                tokio::spawn(async move {
+                    let _ = qm_clone.set_global_limit(limit).await;
+                });
+            }
+        }
+        Ok(())
+    })?)?;
+
+    let qm_get = qm_cell.clone();
+    jadm_rust.set("get_queue", lua.create_function(move |lua, _: ()| {
+        let mut list = Vec::new();
+        if let Some(weak) = qm_get.get() {
+            if let Some(qm) = weak.upgrade() {
+                let queue = qm.get_queue();
+                for dl in queue {
+                    let table = lua.create_table()?;
+                    table.set("id", dl.download.id.to_string())?;
+                    table.set("url", dl.download.url)?;
+                    table.set("filename", dl.download.filename.unwrap_or_default())?;
+                    table.set("status", match dl.download.status {
+                        DownloadStatus::Downloading => "Downloading",
+                        DownloadStatus::Paused => "Paused",
+                        DownloadStatus::Queued => "Queued",
+                        DownloadStatus::Done => "Done",
+                        DownloadStatus::Failed => "Failed",
+                        DownloadStatus::Cancelled => "Cancelled",
+                    })?;
+                    table.set("size", dl.download.size.unwrap_or(0))?;
+                    table.set("percent", dl.percent)?;
+                    table.set("rate", dl.rate_bytes)?;
+                    list.push(table);
+                }
+            }
+        }
+        Ok(list)
     })?)?;
 
     // Initialize helper tables and registration functions

@@ -95,6 +95,18 @@ impl QueueManager {
         Ok(())
     }
 
+    pub async fn set_global_limit(&self, limit_bytes_sec: u32) -> Result<()> {
+        let limit_str = if limit_bytes_sec == 0 {
+            "0".to_string()
+        } else {
+            limit_bytes_sec.to_string()
+        };
+        self.aria2.change_global_option(serde_json::json!({
+            "max-overall-download-limit": limit_str
+        })).await?;
+        Ok(())
+    }
+
     pub async fn add_download(self: &Arc<Self>, params: AddDownloadParams) -> Result<(Uuid, String)> {
         let mut params = params;
         if let Some(lm) = &self.lua_manager {

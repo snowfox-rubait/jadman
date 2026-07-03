@@ -17,7 +17,7 @@ pub struct HttpRpcServer {
     queue_manager: Arc<QueueManager>,
 }
 
-pub async fn run_http_server(queue_manager: Arc<QueueManager>, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
+pub async fn run_http_server(queue_manager: Arc<QueueManager>, _config: Arc<crate::config::Config>) -> anyhow::Result<()> {
     let state = HttpRpcServer {
         queue_manager,
     };
@@ -28,6 +28,7 @@ pub async fn run_http_server(queue_manager: Arc<QueueManager>, config: Arc<crate
         .route("/api/v2/torrents/info", get(torrents_info_handler))
         .route("/api/v2/torrents/add", post(torrents_add_handler))
         .route("/api/v2/torrents/delete", post(torrents_delete_handler))
+        .route("/stream/:id", get(stream_media_handler))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:6246").await?;
@@ -226,4 +227,38 @@ async fn torrents_delete_handler(
     }
     
     StatusCode::OK
+}
+
+async fn stream_media_handler(
+    State(state): State<HttpRpcServer>,
+    axum::extract::Path(id_str): axum::extract::Path<String>,
+    req: axum::http::Request<axum::body::Body>,
+) -> impl IntoResponse {
+    let id = match Uuid::parse_str(&id_str) {
+        Ok(u) => u,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    let downloads = state.queue_manager.get_queue();
+    let dl_view = match downloads.into_iter().find(|d| d.download.id == id) {
+        Some(v) => v,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let filename = match dl_view.download.filename {
+        Some(name) => name,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let filepath = std::path::PathBuf::from(dl_view.download.folder).join(filename);
+    if !filepath.exists() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    use tower::Service;
+    let mut service = tower_http::services::ServeFile::new(filepath);
+    match service.call(req).await {
+        Ok(res) => res.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }

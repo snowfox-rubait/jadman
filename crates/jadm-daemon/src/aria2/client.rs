@@ -11,6 +11,7 @@ pub trait Aria2ClientTrait: Send + Sync {
     async fn pause(&self, gid: &str) -> Result<String>;
     async fn unpause(&self, gid: &str) -> Result<String>;
     async fn remove(&self, gid: &str) -> Result<String>;
+    async fn change_global_option(&self, options: serde_json::Value) -> Result<String>;
 }
 
 pub struct Aria2Client {
@@ -79,5 +80,9 @@ impl Aria2ClientTrait for Aria2Client {
 
     async fn remove(&self, gid: &str) -> Result<String> {
         self.call("remove", vec![json!(gid)]).await
+    }
+
+    async fn change_global_option(&self, options: serde_json::Value) -> Result<String> {
+        self.call("changeGlobalOption", vec![options]).await
     }
 }
