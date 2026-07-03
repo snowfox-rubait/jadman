@@ -240,6 +240,14 @@ async fn main() -> Result<()> {
         }
     });
 
+    let qm_http = queue_manager.clone();
+    let config_http = config.clone();
+    let http_handle = tokio::spawn(async move {
+        if let Err(e) = crate::rpc::http::run_http_server(qm_http, config_http).await {
+            eprintln!("HTTP RPC Server error: {}", e);
+        }
+    });
+
     // Start SOCKS5 Proxy Server on port 6247
     let socks_token = uuid::Uuid::new_v4().to_string().replace("-", "");
     let token_path = proj_dirs.runtime_dir()
@@ -344,6 +352,7 @@ async fn main() -> Result<()> {
     // Wait for critical tasks or signal
     tokio::select! {
         res = rpc_handle => res?,
+        res = http_handle => res?,
         res = socks_handle => res?,
         res = poll_handle => res?,
         res = cleanup_handle => res?,

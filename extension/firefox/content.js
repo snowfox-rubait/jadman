@@ -355,6 +355,9 @@ function updatePauseState(paused) {
         
         while (activeMediaWrappers.length > 0) {
             const item = activeMediaWrappers.pop();
+            if (item.observer) {
+                try { item.observer.disconnect(); } catch(e) {}
+            }
             try { nativeRemove.call(item.wrapper); } catch(e) { item.wrapper.remove(); }
             item.targetElement.dataset[RANDOM_PREFIX + 'Injected'] = "false";
         }
@@ -396,6 +399,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
             if (currentDownloadMode === "ghost") {
                 while (activeMediaWrappers.length > 0) {
                     const item = activeMediaWrappers.pop();
+                    if (item.observer) {
+                        try { item.observer.disconnect(); } catch(e) {}
+                    }
                     try { nativeRemove.call(item.wrapper); } catch(e) { item.wrapper.remove(); }
                     item.targetElement.dataset[RANDOM_PREFIX + 'Injected'] = "false";
                 }
@@ -1051,7 +1057,7 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     });
     observer.observe(targetElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
 
-    const wrapperItem = { wrapper, targetElement, icon };
+    const wrapperItem = { wrapper, targetElement, icon, observer };
     activeMediaWrappers.push(wrapperItem);
 
     setTimeout(() => {
@@ -1061,6 +1067,7 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
         const isInvisible = rect.width === 0 || rect.height === 0 || computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0';
         const isClipped = parentComputed.overflow === 'hidden' && (rect.right < 0 || rect.bottom < 0 || rect.left > window.innerWidth || rect.top > window.innerHeight);
         if (isInvisible || isClipped) {
+            try { observer.disconnect(); } catch(e) {}
             try {
                 nativeRemove.call(wrapper);
             } catch(e) {

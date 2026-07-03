@@ -17,7 +17,6 @@ enum LuaRequest {
         url: String,
         responder: oneshot::Sender<Option<String>>,
     },
-    #[allow(dead_code)]
     RecoveryResolve {
         url: String,
         error_code: u16,
@@ -138,7 +137,6 @@ impl ScriptManager {
     }
 
     /// Iterates over registered link recovery resolvers. Returns the recovered URL if handled.
-    #[allow(dead_code)]
     pub async fn recovery_resolve(&self, url: &str, error_code: u16) -> Result<Option<String>> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(LuaRequest::RecoveryResolve {

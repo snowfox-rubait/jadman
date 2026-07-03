@@ -1044,11 +1044,27 @@ impl QueueManager {
         }
     }
 
-    fn trigger_error_hook(&self, download: Download) {
+    fn trigger_error_hook(self: &Arc<Self>, download: Download) {
         if let Some(lm) = &self.lua_manager {
             let lm_clone = lm.clone();
+            let this = self.clone();
             tokio::spawn(async move {
-                let _ = lm_clone.trigger_hook("on_download_error", download).await;
+                let _ = lm_clone.trigger_hook("on_download_error", download.clone()).await;
+                
+                let error_msg = download.error.as_deref().unwrap_or("");
+                let is_404 = error_msg.contains("404") || error_msg.contains("Not Found") || error_msg.contains("22");
+                if is_404 {
+                    println!("[JADMan Recovery] 404 error detected for '{}'. Invoking recovery resolvers...", download.url);
+                    if let Ok(Some(recovered_url)) = lm_clone.recovery_resolve(&download.url, 404).await {
+                        println!("[JADMan Recovery] Successfully resolved recovered URL: '{}'. Requeuing...", recovered_url);
+                        if let Some(mut dl) = this.downloads.get_mut(&download.id) {
+                            dl.url = recovered_url;
+                            dl.status = DownloadStatus::Queued;
+                            dl.error = None;
+                            let _ = crate::db::queries::update_download(&this.db_pool, &*dl).await;
+                        }
+                    }
+                }
             });
         }
     }

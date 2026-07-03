@@ -1595,6 +1595,7 @@ dependencies = [
  "tower",
  "tower-http 0.5.2",
  "tower-service",
+ "url",
  "uuid",
  "which 6.0.3",
 ]
