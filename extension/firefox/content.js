@@ -569,7 +569,7 @@ document.addEventListener("click", (e) => {
     }
 }, true);
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "media_discovered") {
         if (chrome.runtime?.id) {
             chrome.runtime.sendMessage({ action: "get_tab_discovery" }, (response) => {

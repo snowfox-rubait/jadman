@@ -23,6 +23,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
 const params = new URLSearchParams(window.location.search);
 const url = params.get("url") || "";
 const mimeType = params.get("mime") || null;
+const targetFrameId = params.get("frameId") ? parseInt(params.get("frameId"), 10) : 0;
 document.getElementById("url").value = url;
 
 // Detect and show playlist option
@@ -427,7 +428,9 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
                     action: "start_browser_fetch",
                     url: url,
                     daemonId: daemonId,
-                    folder: folder
+                    folder: folder,
+                    tabId: targetTabId,
+                    frameId: targetFrameId
                 });
                 statusDiv.innerText = "✅ Browser Fetch stream started.";
                 setTimeout(() => window.close(), 1500);
@@ -468,7 +471,9 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
                     action: "start_browser_segment_fetch",
                     url: url,
                     daemonId: daemonId,
-                    folder: folder
+                    folder: folder,
+                    tabId: targetTabId,
+                    frameId: targetFrameId
                 });
                 statusDiv.innerText = "✅ HLS Segment caching stream started.";
                 setTimeout(() => window.close(), 1500);

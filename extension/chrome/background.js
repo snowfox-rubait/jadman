@@ -117,21 +117,30 @@ function spawnJadmPage(url, width = 800, height = 600) {
     });
 }
 
-async function openJadmPopup(url, filename = null, mime = null) {
+async function openJadmPopup(url, filename = null, mime = null, targetTabId = null, targetFrameId = null) {
     if (isBlacklisted(url)) return;
     await triggerFloat();
     
     let tabIdParam = "";
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs && tabs.length > 0 && tabs[0].id) {
-            tabIdParam = `&tabId=${tabs[0].id}`;
+    if (targetTabId) {
+        tabIdParam = `&tabId=${targetTabId}`;
+    } else {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs && tabs.length > 0 && tabs[0].id) {
+                tabIdParam = `&tabId=${tabs[0].id}`;
+            }
+        } catch(e) {
+            console.error("Error querying active tab for popup:", e);
         }
-    } catch(e) {
-        console.error("Error querying active tab for popup:", e);
+    }
+    
+    let frameIdParam = "";
+    if (targetFrameId !== null && targetFrameId !== undefined) {
+        frameIdParam = `&frameId=${targetFrameId}`;
     }
 
-    const targetUrl = `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}`;
+    const targetUrl = `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}${frameIdParam}`;
     spawnJadmPage(targetUrl, 450, 380);
 }
 
@@ -226,49 +235,74 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (message.action === "start_browser_fetch") {
-        const { url, daemonId, folder } = message;
-        console.log(`[JADMan BrowserFetch] Forwarding request to active tab... URL: ${url}, ID: ${daemonId}`);
+        const { url, daemonId, folder, tabId, frameId } = message;
+        console.log(`[JADMan BrowserFetch] Forwarding request to tab: ${tabId}, frame: ${frameId}, URL: ${url}, ID: ${daemonId}`);
         
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs && tabs[0]) {
-                console.log(`[JADMan BrowserFetch] Sending message to tab ${tabs[0].id}`);
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "start_browser_fetch",
-                    url: url,
-                    daemonId: daemonId,
-                    folder: folder
-                }).catch((e) => {
-                    console.error("[JADMan BrowserFetch] Failed to send message to tab content script:", e);
-                    sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-                });
-            } else {
-                console.error("[JADMan BrowserFetch] No active tab found to run fetch in.");
+        const targetTabId = tabId ? parseInt(tabId, 10) : null;
+        const targetFrameId = frameId !== undefined && frameId !== null ? parseInt(frameId, 10) : null;
+
+        const sendMsg = (tid) => {
+            const options = {};
+            if (targetFrameId !== null) options.frameId = targetFrameId;
+            chrome.tabs.sendMessage(tid, {
+                action: "start_browser_fetch",
+                url: url,
+                daemonId: daemonId,
+                folder: folder
+            }, options).catch((e) => {
+                console.error("[JADMan BrowserFetch] Failed to send message to tab content script:", e);
                 sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-            }
-        });
+            });
+        };
+
+        if (targetTabId) {
+            sendMsg(targetTabId);
+        } else {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs && tabs[0]) {
+                    sendMsg(tabs[0].id);
+                } else {
+                    console.error("[JADMan BrowserFetch] No active tab found to run fetch in.");
+                    sendNativeMessage({ cmd: "StopDownload", id: daemonId });
+                }
+            });
+        }
 
         sendResponse({ status: "started" });
         return true;
     } else if (message.action === "start_browser_segment_fetch") {
-        const { url, daemonId, folder } = message;
-        console.log(`[JADMan SegmentFetch] Forwarding segment fetch to active tab... URL: ${url}, ID: ${daemonId}`);
+        const { url, daemonId, folder, tabId, frameId } = message;
+        console.log(`[JADMan SegmentFetch] Forwarding segment fetch to tab: ${tabId}, frame: ${frameId}, URL: ${url}, ID: ${daemonId}`);
         
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs && tabs[0]) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "start_browser_segment_fetch",
-                    url: url,
-                    daemonId: daemonId,
-                    folder: folder
-                }).catch((e) => {
-                    console.error("[JADMan SegmentFetch] Failed to send message to tab content script:", e);
-                    sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-                });
-            } else {
-                console.error("[JADMan SegmentFetch] No active tab found to run fetch in.");
+        const targetTabId = tabId ? parseInt(tabId, 10) : null;
+        const targetFrameId = frameId !== undefined && frameId !== null ? parseInt(frameId, 10) : null;
+
+        const sendMsg = (tid) => {
+            const options = {};
+            if (targetFrameId !== null) options.frameId = targetFrameId;
+            chrome.tabs.sendMessage(tid, {
+                action: "start_browser_segment_fetch",
+                url: url,
+                daemonId: daemonId,
+                folder: folder
+            }, options).catch((e) => {
+                console.error("[JADMan SegmentFetch] Failed to send message to tab content script:", e);
                 sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-            }
-        });
+            });
+        };
+
+        if (targetTabId) {
+            sendMsg(targetTabId);
+        } else {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs && tabs[0]) {
+                    sendMsg(tabs[0].id);
+                } else {
+                    console.error("[JADMan SegmentFetch] No active tab found to run fetch in.");
+                    sendNativeMessage({ cmd: "StopDownload", id: daemonId });
+                }
+            });
+        }
 
         sendResponse({ status: "started" });
         return true;
@@ -379,7 +413,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ status: "ok" });
         return true;
     } else if (message.action === "request_download") {
-        openJadmPopup(message.url, null, message.mime);
+        const senderTabId = sender.tab ? sender.tab.id : null;
+        const senderFrameId = sender.frameId;
+        openJadmPopup(message.url, null, message.mime, senderTabId, senderFrameId);
     } else if (message.action === "monitor_native_download") {
         // === CHROME NATIVE DOWNLOAD MONITOR ===
         // Tracks a chrome.downloads download and reports progress/completion to daemon.
@@ -428,7 +464,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 url: message.url,
                 mime: message.mime,
                 size: message.size,
-                priority: message.priority || 'NORMAL'
+                priority: message.priority || 'NORMAL',
+                frameId: sender.frameId || 0
             };
             
             if (item.priority === 'MANIFEST') siphonedData[tid].unshift(item);
@@ -503,7 +540,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             isSiphoned: true,
             mime: s.mime,
             size: s.size,
-            priority: s.priority
+            priority: s.priority,
+            frameId: s.frameId || 0
         }));
         const combined = [...list, ...siphoned];
         chrome.storage.local.set({ grabbedLinks: combined }, () => {
@@ -521,7 +559,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             isSiphoned: true,
             mime: s.mime,
             size: s.size,
-            priority: s.priority
+            priority: s.priority,
+            frameId: s.frameId || 0
         }));
         sendResponse({ urls: list, siphoned: siphoned });
     } else if (message.action === "launch_cdm_extractor") {
