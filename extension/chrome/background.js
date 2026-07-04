@@ -232,6 +232,30 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
     }
 });
 
+// Keep track of active frame ports for multi-frame tab broadcasts
+const activePorts = new Map(); // tabId -> Set of ports
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "jadman-frame") {
+        const tabId = port.sender?.tab?.id;
+        if (tabId) {
+            if (!activePorts.has(tabId)) {
+                activePorts.set(tabId, new Set());
+            }
+            activePorts.get(tabId).add(port);
+            
+            port.onDisconnect.addListener(() => {
+                const ports = activePorts.get(tabId);
+                if (ports) {
+                    ports.delete(port);
+                    if (ports.size === 0) {
+                        activePorts.delete(tabId);
+                    }
+                }
+            });
+        }
+    }
+});
+
 // 3. MESSAGE HUB
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.cmd) {
@@ -241,31 +265,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.action === "start_browser_fetch") {
         const { url, daemonId, folder, tabId } = message;
-        console.log(`[JADMan BrowserFetch] Executing fetch in tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
+        console.log(`[JADMan BrowserFetch] Forwarding browser fetch to ports of tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
         
         const targetTabId = tabId ? parseInt(tabId, 10) : null;
 
-        const runScript = (tid) => {
-            chrome.scripting.executeScript({
-                target: { tabId: tid, allFrames: true },
-                func: (u, d, f) => {
-                    window.dispatchEvent(new CustomEvent("JADMAN_TRIGGER_BROWSER_FETCH", {
-                        detail: { url: u, daemonId: d, folder: f }
-                    }));
-                },
-                args: [url, daemonId, folder]
-            }).catch((e) => {
-                console.error("[JADMan BrowserFetch] Script execution failed:", e);
-                sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-            });
+        const broadcast = (tid) => {
+            const ports = activePorts.get(tid);
+            if (ports && ports.size > 0) {
+                ports.forEach(p => {
+                    p.postMessage({
+                        action: "start_browser_fetch",
+                        url: url,
+                        daemonId: daemonId,
+                        folder: folder
+                    });
+                });
+            } else {
+                console.warn(`[JADMan BrowserFetch] No active ports for tab ${tid}, falling back to tabs.sendMessage`);
+                chrome.tabs.sendMessage(tid, {
+                    action: "start_browser_fetch",
+                    url: url,
+                    daemonId: daemonId,
+                    folder: folder
+                }).catch(() => {});
+            }
         };
 
         if (targetTabId) {
-            runScript(targetTabId);
+            broadcast(targetTabId);
         } else {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs && tabs[0]) {
-                    runScript(tabs[0].id);
+                    broadcast(tabs[0].id);
                 } else {
                     console.error("[JADMan BrowserFetch] No active tab found to run fetch in.");
                     sendNativeMessage({ cmd: "StopDownload", id: daemonId });
@@ -277,31 +308,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     } else if (message.action === "start_browser_segment_fetch") {
         const { url, daemonId, folder, tabId } = message;
-        console.log(`[JADMan SegmentFetch] Executing segment fetch in tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
+        console.log(`[JADMan SegmentFetch] Forwarding segment fetch to ports of tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
         
         const targetTabId = tabId ? parseInt(tabId, 10) : null;
 
-        const runScript = (tid) => {
-            chrome.scripting.executeScript({
-                target: { tabId: tid, allFrames: true },
-                func: (u, d, f) => {
-                    window.dispatchEvent(new CustomEvent("JADMAN_TRIGGER_SEGMENT_FETCH", {
-                        detail: { url: u, daemonId: d, folder: f }
-                    }));
-                },
-                args: [url, daemonId, folder]
-            }).catch((e) => {
-                console.error("[JADMan SegmentFetch] Script execution failed:", e);
-                sendNativeMessage({ cmd: "StopDownload", id: daemonId });
-            });
+        const broadcast = (tid) => {
+            const ports = activePorts.get(tid);
+            if (ports && ports.size > 0) {
+                ports.forEach(p => {
+                    p.postMessage({
+                        action: "start_browser_segment_fetch",
+                        url: url,
+                        daemonId: daemonId,
+                        folder: folder
+                    });
+                });
+            } else {
+                console.warn(`[JADMan SegmentFetch] No active ports for tab ${tid}, falling back to tabs.sendMessage`);
+                chrome.tabs.sendMessage(tid, {
+                    action: "start_browser_segment_fetch",
+                    url: url,
+                    daemonId: daemonId,
+                    folder: folder
+                }).catch(() => {});
+            }
         };
 
         if (targetTabId) {
-            runScript(targetTabId);
+            broadcast(targetTabId);
         } else {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs && tabs[0]) {
-                    runScript(tabs[0].id);
+                    broadcast(tabs[0].id);
                 } else {
                     console.error("[JADMan SegmentFetch] No active tab found to run fetch in.");
                     sendNativeMessage({ cmd: "StopDownload", id: daemonId });

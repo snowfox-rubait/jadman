@@ -258,7 +258,8 @@ async function fetchViaBackground(url, responseType = 'text') {
         chrome.runtime.sendMessage({
             action: "proxy_fetch",
             url: url,
-            responseType: responseType
+            responseType: responseType,
+            referer: window.location.href
         }, (response) => {
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
@@ -1009,18 +1010,23 @@ async function startBrowserSegmentFetch(url, daemonId, folder) {
     }
 }
 
-// Bind custom events to helper functions
-window.addEventListener("JADMAN_TRIGGER_BROWSER_FETCH", (event) => {
-    const { url, daemonId, folder } = event.detail;
-    console.log("[JADMan Content] Triggered browser fetch via custom event:", url);
-    startBrowserFetch(url, daemonId, folder);
-});
-
-window.addEventListener("JADMAN_TRIGGER_SEGMENT_FETCH", (event) => {
-    const { url, daemonId, folder } = event.detail;
-    console.log("[JADMan Content] Triggered HLS segment fetch via custom event:", url);
-    startBrowserSegmentFetch(url, daemonId, folder);
-});
+// Connect runtime port for multi-frame background broadcasts
+if (chrome.runtime?.id) {
+    try {
+        const port = chrome.runtime.connect({ name: "jadman-frame" });
+        port.onMessage.addListener((message) => {
+            if (message.action === "start_browser_fetch") {
+                console.log("[JADMan Content] Received start_browser_fetch via Port connection:", message.url);
+                startBrowserFetch(message.url, message.daemonId, message.folder);
+            } else if (message.action === "start_browser_segment_fetch") {
+                console.log("[JADMan Content] Received start_browser_segment_fetch via Port connection:", message.url);
+                startBrowserSegmentFetch(message.url, message.daemonId, message.folder);
+            }
+        });
+    } catch (e) {
+        console.error("[JADMan Content] Failed to connect JADMan background port:", e);
+    }
+}
 
 
 
