@@ -247,11 +247,17 @@ unblockRightClick();
 
 // Siphon hook code now executed via siphon_hook.js
 
+let latestSniffedManifestUrl = null;
+
 // 3. LISTEN FOR SIPHONED DATA
 window.addEventListener(JADMAN_COMM_TOKEN, (event) => {
     if (isPaused) return;
     const { url, type, data, mime, priority } = event.detail || {};
     if (!chrome.runtime?.id) return;
+
+    if (url && (url.includes('.m3u8') || url.includes('.mpd') || priority === 'MANIFEST')) {
+        latestSniffedManifestUrl = url;
+    }
     
     if (type === 'MEDIA_DETECTED') {
         const { mediaId, src, tagName } = data;
@@ -680,6 +686,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let overlay = null;
 
             async function fetchAndParseHls(manifestUrl) {
+                const lower = manifestUrl.toLowerCase();
+                const isManifest = lower.includes(".m3u8") || lower.includes(".mpd") || lower.includes("playlist") || lower.includes("manifest");
+                if (!isManifest && !lower.startsWith("blob:")) {
+                    throw new Error("Target URL is not a valid HLS/DASH manifest URL.");
+                }
+
                 const res = await nativeFetch(manifestUrl);
                 if (!res.ok) throw new Error(`Failed to fetch manifest: HTTP ${res.status}`);
                 let text = await res.text();
@@ -1200,7 +1212,7 @@ function injectMediaIcon(targetElement, mediaUrl, isGrabberFallback = false, att
     icon.dataset.mediaUrl = mediaUrl || "";
     icon.onclick = (e) => { 
         e.preventDefault(); e.stopPropagation(); 
-        const currentUrl = icon.dataset.mediaUrl || window.location.href;
+        const currentUrl = icon.dataset.mediaUrl || latestSniffedManifestUrl || window.location.href;
         if (chrome.runtime?.id) {
             const mime = targetElement.tagName === "VIDEO" ? "video/mp4" : (targetElement.tagName === "AUDIO" ? "audio/mpeg" : null);
             chrome.runtime.sendMessage({ action: "request_download", url: currentUrl, mime: mime }); 
