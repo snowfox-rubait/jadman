@@ -52,3 +52,4 @@ pip-selfcheck.json
 *.deb
 web_archive.tar.gz
 release-artifacts/
+/packaging/config/

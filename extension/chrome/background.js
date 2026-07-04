@@ -249,6 +249,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         sendResponse({ status: "started" });
         return true;
+    } else if (message.action === "start_browser_segment_fetch") {
+        const { url, daemonId, folder } = message;
+        console.log(`[JADMan SegmentFetch] Forwarding segment fetch to active tab... URL: ${url}, ID: ${daemonId}`);
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs && tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: "start_browser_segment_fetch",
+                    url: url,
+                    daemonId: daemonId,
+                    folder: folder
+                }).catch((e) => {
+                    console.error("[JADMan SegmentFetch] Failed to send message to tab content script:", e);
+                    sendNativeMessage({ cmd: "StopDownload", id: daemonId });
+                });
+            } else {
+                console.error("[JADMan SegmentFetch] No active tab found to run fetch in.");
+                sendNativeMessage({ cmd: "StopDownload", id: daemonId });
+            }
+        });
+
+        sendResponse({ status: "started" });
+        return true;
     } else if (message.action === "start_debugger_capture") {
         const { url, tabId, daemonId, folder } = message;
         console.log(`[JADMan Debugger] Attaching debugger to tab ${tabId} for URL: ${url}`);

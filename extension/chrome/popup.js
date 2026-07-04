@@ -281,6 +281,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
     const useWebGL = popupMode === "ghost" && popupEngine === "webgl_capture";
     const useNative = popupMode === "ghost" && popupEngine === "chrome_native";
     const useBrowserFetch = popupMode === "ghost" && popupEngine === "browser_fetch";
+    const useBrowserSegmentFetch = popupMode === "ghost" && popupEngine === "browser_segment_fetch";
 
     const reqEngine = useNative ? "chrome_native" : (popupMode === "ghost" ? popupEngine : null);
 
@@ -433,6 +434,47 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
             }
         } catch(e) {
             alert("Failed to start Browser Fetch: " + e.message);
+        }
+        return;
+    }
+    
+    if (useBrowserSegmentFetch) {
+        statusDiv.innerText = "🔗 Initializing HLS Segment Caching...";
+        let targetTabId = null;
+        const queryTabId = params.get("tabId");
+        if (queryTabId) {
+            targetTabId = parseInt(queryTabId, 10);
+        } else {
+            try {
+                const tabs = await chrome.tabs.query({});
+                let targetTab = tabs.find(t => t.active && t.url && !t.url.startsWith("chrome-extension://"));
+                if (targetTab) targetTabId = targetTab.id;
+            } catch(e) {}
+        }
+
+        if (!targetTabId) {
+            alert("Segment Caching requires an active tab.");
+            return;
+        }
+
+        try {
+            const regResp = await chrome.runtime.sendMessage({
+                cmd: "AddDownload",
+                ...fullParams
+            });
+            const daemonId = regResp.id || null;
+            if (daemonId) {
+                chrome.runtime.sendMessage({
+                    action: "start_browser_segment_fetch",
+                    url: url,
+                    daemonId: daemonId,
+                    folder: folder
+                });
+                statusDiv.innerText = "✅ HLS Segment caching stream started.";
+                setTimeout(() => window.close(), 1500);
+            }
+        } catch(e) {
+            alert("Failed to start HLS Segment Caching: " + e.message);
         }
         return;
     }
