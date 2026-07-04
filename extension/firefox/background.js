@@ -240,32 +240,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (message.action === "start_browser_fetch") {
-        const { url, daemonId, folder, tabId, frameId } = message;
-        console.log(`[JADMan BrowserFetch] Forwarding request to tab: ${tabId}, frame: ${frameId}, URL: ${url}, ID: ${daemonId}`);
+        const { url, daemonId, folder, tabId } = message;
+        console.log(`[JADMan BrowserFetch] Executing fetch in tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
         
         const targetTabId = tabId ? parseInt(tabId, 10) : null;
-        const targetFrameId = frameId !== undefined && frameId !== null ? parseInt(frameId, 10) : null;
 
-        const sendMsg = (tid) => {
-            const options = {};
-            if (targetFrameId !== null) options.frameId = targetFrameId;
-            chrome.tabs.sendMessage(tid, {
-                action: "start_browser_fetch",
-                url: url,
-                daemonId: daemonId,
-                folder: folder
-            }, options).catch((e) => {
-                console.error("[JADMan BrowserFetch] Failed to send message to tab content script:", e);
+        const runScript = (tid) => {
+            chrome.scripting.executeScript({
+                target: { tabId: tid, allFrames: true },
+                func: (u, d, f) => {
+                    window.dispatchEvent(new CustomEvent("JADMAN_TRIGGER_BROWSER_FETCH", {
+                        detail: { url: u, daemonId: d, folder: f }
+                    }));
+                },
+                args: [url, daemonId, folder]
+            }).catch((e) => {
+                console.error("[JADMan BrowserFetch] Script execution failed:", e);
                 sendNativeMessage({ cmd: "StopDownload", id: daemonId });
             });
         };
 
         if (targetTabId) {
-            sendMsg(targetTabId);
+            runScript(targetTabId);
         } else {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs && tabs[0]) {
-                    sendMsg(tabs[0].id);
+                    runScript(tabs[0].id);
                 } else {
                     console.error("[JADMan BrowserFetch] No active tab found to run fetch in.");
                     sendNativeMessage({ cmd: "StopDownload", id: daemonId });
@@ -276,32 +276,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ status: "started" });
         return true;
     } else if (message.action === "start_browser_segment_fetch") {
-        const { url, daemonId, folder, tabId, frameId } = message;
-        console.log(`[JADMan SegmentFetch] Forwarding segment fetch to tab: ${tabId}, frame: ${frameId}, URL: ${url}, ID: ${daemonId}`);
+        const { url, daemonId, folder, tabId } = message;
+        console.log(`[JADMan SegmentFetch] Executing segment fetch in tab: ${tabId}, URL: ${url}, ID: ${daemonId}`);
         
         const targetTabId = tabId ? parseInt(tabId, 10) : null;
-        const targetFrameId = frameId !== undefined && frameId !== null ? parseInt(frameId, 10) : null;
 
-        const sendMsg = (tid) => {
-            const options = {};
-            if (targetFrameId !== null) options.frameId = targetFrameId;
-            chrome.tabs.sendMessage(tid, {
-                action: "start_browser_segment_fetch",
-                url: url,
-                daemonId: daemonId,
-                folder: folder
-            }, options).catch((e) => {
-                console.error("[JADMan SegmentFetch] Failed to send message to tab content script:", e);
+        const runScript = (tid) => {
+            chrome.scripting.executeScript({
+                target: { tabId: tid, allFrames: true },
+                func: (u, d, f) => {
+                    window.dispatchEvent(new CustomEvent("JADMAN_TRIGGER_SEGMENT_FETCH", {
+                        detail: { url: u, daemonId: d, folder: f }
+                    }));
+                },
+                args: [url, daemonId, folder]
+            }).catch((e) => {
+                console.error("[JADMan SegmentFetch] Script execution failed:", e);
                 sendNativeMessage({ cmd: "StopDownload", id: daemonId });
             });
         };
 
         if (targetTabId) {
-            sendMsg(targetTabId);
+            runScript(targetTabId);
         } else {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs && tabs[0]) {
-                    sendMsg(tabs[0].id);
+                    runScript(tabs[0].id);
                 } else {
                     console.error("[JADMan SegmentFetch] No active tab found to run fetch in.");
                     sendNativeMessage({ cmd: "StopDownload", id: daemonId });
@@ -569,8 +569,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }));
         sendResponse({ urls: list, siphoned: siphoned });
     } else if (message.action === "proxy_fetch") {
-        const { url, responseType } = message;
-        fetch(url)
+        const { url, responseType, referer } = message;
+        const fetchOptions = {};
+        if (referer) {
+            fetchOptions.headers = { "Referer": referer };
+        }
+        fetch(url, fetchOptions)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 if (responseType === 'arraybuffer') {

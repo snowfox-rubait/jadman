@@ -656,306 +656,239 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         stopSegmentRecording();
     } else if (message.action === "start_browser_fetch") {
         console.log("[JADMan Content Script] Received start_browser_fetch message:", message);
-        const { url, daemonId, folder } = message;
-        (async () => {
-            try {
-                const response = await nativeFetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
-                }
-                const totalSize = parseInt(response.headers.get('content-length') || '0', 10);
-                const contentDisp = response.headers.get('content-disposition') || '';
-                
-                let filename = 'download';
-                if (contentDisp) {
-                    const match = contentDisp.match(/filename\*?=["']?(?:UTF-8'')?([^"';\n]+)["']?/i);
-                    if (match && match[1]) {
-                        filename = decodeURIComponent(match[1]);
-                    } else {
-                        const matchSimple = contentDisp.match(/filename=["']?([^"';\n]+)["']?/i);
-                        if (matchSimple && matchSimple[1]) {
-                            filename = matchSimple[1];
-                        }
-                    }
-                }
-                if (filename === 'download') {
-                    filename = url.split('/').pop().split('?')[0] || 'download';
-                }
-                
-                const reader = response.body.getReader();
-                let chunkIndex = 0;
-                let downloaded = 0;
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    const isLast = done;
-                    const chunkData = done ? new Uint8Array(0) : value;
-                    
-                    chrome.runtime.sendMessage({
-                        cmd: "SiphonChunk",
-                        daemon_id: daemonId,
-                        chunk_index: chunkIndex,
-                        is_last: isLast,
-                        filename: filename,
-                        total_size: totalSize,
-                        data: Array.from(chunkData)
-                    });
-                    
-                    if (done) break;
-                    chunkIndex++;
-                    downloaded += chunkData.length;
-                }
-                console.log(`[JADMan Content Script] Browser fetch download completed: ${filename}`);
-            } catch(err) {
-                console.error("[JADMan Content Script] Browser fetch error:", err);
-                chrome.runtime.sendMessage({ cmd: "StopDownload", id: daemonId });
-            }
-        })();
+        startBrowserFetch(message.url, message.daemonId, message.folder);
     } else if (message.action === "start_browser_segment_fetch") {
         console.log("[JADMan Content Script] Received start_browser_segment_fetch message:", message);
-        const { url, daemonId, folder } = message;
-        (async () => {
-            let overlay = null;
+        startBrowserSegmentFetch(message.url, message.daemonId, message.folder);
+    }
+}, true);
 
-            async function fetchAndParseHls(manifestUrl) {
-                const lower = manifestUrl.toLowerCase();
-                const isManifest = lower.includes(".m3u8") || lower.includes(".mpd") || lower.includes("playlist") || lower.includes("manifest");
-                if (!isManifest && !lower.startsWith("blob:")) {
-                    throw new Error("Target URL is not a valid HLS/DASH manifest URL.");
+async function startBrowserFetch(url, daemonId, folder) {
+    try {
+        const response = await nativeFetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        const totalSize = parseInt(response.headers.get('content-length') || '0', 10);
+        const contentDisp = response.headers.get('content-disposition') || '';
+        
+        let filename = 'download';
+        if (contentDisp) {
+            const match = contentDisp.match(/filename\*?=["']?(?:UTF-8'')?([^"';\n]+)["']?/i);
+            if (match && match[1]) {
+                filename = decodeURIComponent(match[1]);
+            } else {
+                const matchSimple = contentDisp.match(/filename=["']?([^"';\n]+)["']?/i);
+                if (matchSimple && matchSimple[1]) {
+                    filename = matchSimple[1];
                 }
+            }
+        }
+        if (filename === 'download') {
+            filename = url.split('/').pop().split('?')[0] || 'download';
+        }
+        
+        const reader = response.body.getReader();
+        let chunkIndex = 0;
+        let downloaded = 0;
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            const isLast = done;
+            const chunkData = done ? new Uint8Array(0) : value;
+            
+            chrome.runtime.sendMessage({
+                cmd: "SiphonChunk",
+                daemon_id: daemonId,
+                chunk_index: chunkIndex,
+                is_last: isLast,
+                filename: filename,
+                total_size: totalSize,
+                data: Array.from(chunkData)
+            });
+            
+            if (done) break;
+            chunkIndex++;
+            downloaded += chunkData.length;
+        }
+        console.log(`[JADMan Content Script] Browser fetch download completed: ${filename}`);
+    } catch(err) {
+        console.error("[JADMan Content Script] Browser fetch error:", err);
+        chrome.runtime.sendMessage({ cmd: "StopDownload", id: daemonId });
+    }
+}
 
-                const text = await fetchViaBackground(manifestUrl);
-                
-                const resolveUrl = (relative, base) => {
-                    return new URL(relative, base).href;
-                };
+async function startBrowserSegmentFetch(url, daemonId, folder) {
+    let overlay = null;
+    try {
+        overlay = document.createElement("div");
+        overlay.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(17, 17, 17, 0.95);
+            color: #fff;
+            border: 2px solid #00ff66;
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2147483647;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            pointer-events: auto !important;
+        `;
 
-                if (text.includes("#EXT-X-STREAM-INF")) {
-                    const lines = text.split(/\r?\n/);
-                    let bestPlaylistUrl = null;
-                    let bestBandwidth = -1;
-                    
-                    for (let i = 0; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (line.startsWith("#EXT-X-STREAM-INF")) {
-                            const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
-                            const bw = bwMatch ? parseInt(bwMatch[1], 10) : 0;
-                            
-                            let nextLine = "";
-                            for (let j = i + 1; j < lines.length; j++) {
-                                if (lines[j].trim() && !lines[j].trim().startsWith("#")) {
-                                    nextLine = lines[j].trim();
-                                    break;
-                                }
-                            }
-                            if (nextLine && bw > bestBandwidth) {
-                                bestBandwidth = bw;
-                                bestPlaylistUrl = resolveUrl(nextLine, manifestUrl);
-                            }
-                        }
-                    }
-                    
-                    if (bestPlaylistUrl) {
-                        console.log(`[JADMan HLS] Resolving master playlist to best variant: ${bestPlaylistUrl} (Bandwidth: ${bestBandwidth})`);
-                        return fetchAndParseHls(bestPlaylistUrl);
-                    }
+        const dot = document.createElement("div");
+        dot.style.cssText = `
+            width: 10px;
+            height: 10px;
+            background: #00ff66;
+            border-radius: 50%;
+            animation: jadm-pulse 1s infinite alternate;
+        `;
+
+        const text = document.createElement("span");
+        text.innerText = "Parsing HLS Manifest...";
+        text.style.fontFamily = "sans-serif";
+        text.style.fontSize = "13px";
+        text.style.fontWeight = "bold";
+
+        overlay.appendChild(dot);
+        overlay.appendChild(text);
+        const root = getStealthShadowRoot();
+        nativeAppendChild.call(root, overlay);
+
+        const { playlistUrl, segments, encryptionMethod, keyUrl, keyIv, mediaSequence } = await fetchAndParseHls(url);
+        if (segments.length === 0) {
+            throw new Error("No segments found in the HLS manifest.");
+        }
+
+        console.log(`[JADMan HLS] Found ${segments.length} segments to download.`);
+        
+        let aesCryptoKey = null;
+        if (encryptionMethod === "AES-128" && keyUrl) {
+            console.log(`[JADMan HLS] Stream is AES-128 encrypted. Fetching key from: ${keyUrl}`);
+            text.innerText = "Fetching HLS decryption key...";
+            const keyBuffer = await fetchViaBackground(keyUrl, 'arraybuffer');
+            
+            aesCryptoKey = await window.crypto.subtle.importKey(
+                "raw",
+                keyBuffer,
+                { name: "AES-CBC" },
+                false,
+                ["decrypt"]
+            );
+            console.log("[JADMan HLS] AES-128 decryption key imported successfully.");
+        }
+
+        text.innerText = `Stitching segments: 0 / ${segments.length} (0%)`;
+
+        let cleanTitle = document.title.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
+        if (!cleanTitle) cleanTitle = "video";
+        const filename = `${cleanTitle}.ts`;
+
+        let globalChunkIndex = 0;
+        for (let i = 0; i < segments.length; i++) {
+            const segmentUrl = segments[i];
+            
+            let segmentResponse = null;
+            let retries = 3;
+            while (retries > 0) {
+                try {
+                    segmentResponse = await nativeFetch(segmentUrl);
+                    if (segmentResponse.ok) break;
+                } catch(e) {}
+                retries--;
+                if (retries > 0) {
+                    await new Promise(r => setTimeout(r, 1000));
                 }
-
-                const lines = text.split(/\r?\n/);
-                const segments = [];
-                let keyUrl = null;
-                let encryptionMethod = null;
-                let keyIv = null;
-                let mediaSequence = 0;
-
-                for (let line of lines) {
-                    line = line.trim();
-                    if (line && !line.startsWith("#")) {
-                        segments.push(resolveUrl(line, manifestUrl));
-                    } else if (line.startsWith("#EXT-X-KEY")) {
-                        const methodMatch = line.match(/METHOD=([^,\s]+)/i);
-                        const uriMatch = line.match(/URI=["']([^"']+)["']/i);
-                        const ivMatch = line.match(/IV=0x([a-fA-F0-9]+)/i);
-                        
-                        if (methodMatch) encryptionMethod = methodMatch[1].toUpperCase();
-                        if (uriMatch) keyUrl = resolveUrl(uriMatch[1], manifestUrl);
-                        if (ivMatch) {
-                            const hex = ivMatch[1];
-                            keyIv = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                        }
-                    } else if (line.startsWith("#EXT-X-MEDIA-SEQUENCE")) {
-                        const seqMatch = line.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/i);
-                        if (seqMatch) mediaSequence = parseInt(seqMatch[1], 10);
-                    }
-                }
-                
-                return {
-                    playlistUrl: manifestUrl,
-                    segments: segments,
-                    encryptionMethod: encryptionMethod,
-                    keyUrl: keyUrl,
-                    keyIv: keyIv,
-                    mediaSequence: mediaSequence
-                };
             }
 
-            try {
-                overlay = document.createElement("div");
-                overlay.style.cssText = `
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    background: rgba(17, 17, 17, 0.95);
-                    color: #fff;
-                    border: 2px solid #00ff66;
-                    border-radius: 12px;
-                    padding: 12px 18px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    z-index: 2147483647;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                    backdrop-filter: blur(4px);
-                    pointer-events: auto !important;
-                `;
+            if (!segmentResponse || !segmentResponse.ok) {
+                throw new Error(`Failed to fetch segment ${i} after 3 attempts: ${segmentUrl}`);
+            }
 
-                const dot = document.createElement("div");
-                dot.style.cssText = `
-                    width: 10px;
-                    height: 10px;
-                    background: #00ff66;
-                    border-radius: 50%;
-                    animation: jadm-pulse 1s infinite alternate;
-                `;
-
-                const text = document.createElement("span");
-                text.innerText = "Parsing HLS Manifest...";
-                text.style.fontFamily = "sans-serif";
-                text.style.fontSize = "13px";
-                text.style.fontWeight = "bold";
-
-                overlay.appendChild(dot);
-                overlay.appendChild(text);
-                const root = getStealthShadowRoot();
-                nativeAppendChild.call(root, overlay);
-
-                const { playlistUrl, segments, encryptionMethod, keyUrl, keyIv, mediaSequence } = await fetchAndParseHls(url);
-                if (segments.length === 0) {
-                    throw new Error("No segments found in the HLS manifest.");
+            let segmentBuffer = await segmentResponse.arrayBuffer();
+            
+            if (aesCryptoKey) {
+                let iv = keyIv;
+                if (!iv) {
+                    iv = new Uint8Array(16);
+                    const view = new DataView(iv.buffer);
+                    view.setUint32(12, mediaSequence + i, false);
                 }
-
-                console.log(`[JADMan HLS] Found ${segments.length} segments to download.`);
                 
-                let aesCryptoKey = null;
-                if (encryptionMethod === "AES-128" && keyUrl) {
-                    console.log(`[JADMan HLS] Stream is AES-128 encrypted. Fetching key from: ${keyUrl}`);
-                    text.innerText = "Fetching HLS decryption key...";
-                    const keyBuffer = await fetchViaBackground(keyUrl, 'arraybuffer');
-                    
-                    aesCryptoKey = await window.crypto.subtle.importKey(
-                        "raw",
-                        keyBuffer,
-                        { name: "AES-CBC" },
-                        false,
-                        ["decrypt"]
+                try {
+                    segmentBuffer = await window.crypto.subtle.decrypt(
+                        { name: "AES-CBC", iv: iv },
+                        aesCryptoKey,
+                        segmentBuffer
                     );
-                    console.log("[JADMan HLS] AES-128 decryption key imported successfully.");
+                } catch(err) {
+                    console.error(`[JADMan HLS] AES-128 decryption failed for segment ${i}:`, err);
+                    throw new Error(`Failed to decrypt HLS segment ${i}: ${err.message}`);
                 }
-
-                text.innerText = `Stitching segments: 0 / ${segments.length} (0%)`;
-
-                let cleanTitle = document.title.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
-                if (!cleanTitle) cleanTitle = "video";
-                const filename = `${cleanTitle}.ts`;
-
-                let globalChunkIndex = 0;
-                for (let i = 0; i < segments.length; i++) {
-                    const segmentUrl = segments[i];
-                    
-                    let segmentResponse = null;
-                    let retries = 3;
-                    while (retries > 0) {
-                        try {
-                            segmentResponse = await nativeFetch(segmentUrl);
-                            if (segmentResponse.ok) break;
-                        } catch(e) {}
-                        retries--;
-                        if (retries > 0) {
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
-                    }
-
-                    if (!segmentResponse || !segmentResponse.ok) {
-                        throw new Error(`Failed to fetch segment ${i} after 3 attempts: ${segmentUrl}`);
-                    }
-
-                    let segmentBuffer = await segmentResponse.arrayBuffer();
-                    
-                    if (aesCryptoKey) {
-                        let iv = keyIv;
-                        if (!iv) {
-                            iv = new Uint8Array(16);
-                            const view = new DataView(iv.buffer);
-                            view.setUint32(12, mediaSequence + i, false);
-                        }
-                        
-                        try {
-                            segmentBuffer = await window.crypto.subtle.decrypt(
-                                { name: "AES-CBC", iv: iv },
-                                aesCryptoKey,
-                                segmentBuffer
-                            );
-                        } catch(err) {
-                            console.error(`[JADMan HLS] AES-128 decryption failed for segment ${i}:`, err);
-                            throw new Error(`Failed to decrypt HLS segment ${i}: ${err.message}`);
-                        }
-                    }
-
-                    const segmentBytes = new Uint8Array(segmentBuffer);
-                    
-                    // Slice segment into 256KB chunks to prevent message buffer exhaustion and page crashes
-                    const chunkSize = 256 * 1024;
-                    let offset = 0;
-                    while (offset < segmentBytes.length) {
-                        const end = Math.min(offset + chunkSize, segmentBytes.length);
-                        const slice = segmentBytes.slice(offset, end);
-                        const isLast = (i === segments.length - 1) && (end === segmentBytes.length);
-
-                        chrome.runtime.sendMessage({
-                            cmd: "SiphonChunk",
-                            daemon_id: daemonId,
-                            chunk_index: globalChunkIndex,
-                            is_last: isLast,
-                            filename: filename,
-                            total_size: 0,
-                            data: Array.from(slice)
-                        });
-
-                        globalChunkIndex++;
-                        offset = end;
-                    }
-
-                    const percent = Math.round(((i + 1) / segments.length) * 100);
-                    text.innerText = `Stitching segments: ${i + 1} / ${segments.length} (${percent}%)`;
-                }
-
-                console.log(`[JADMan HLS] Successfully fetched and stitched ${segments.length} segments.`);
-                text.innerText = "✅ Download Completed!";
-                setTimeout(() => {
-                    if (overlay) overlay.remove();
-                }, 3000);
-
-            } catch(err) {
-                console.error("[JADMan HLS] Segment grabber failed:", err);
-                if (overlay) {
-                    overlay.style.borderColor = "#ff3333";
-                    const span = overlay.querySelector("span");
-                    if (span) span.innerText = `❌ Error: ${err.message || err}`;
-                    setTimeout(() => overlay.remove(), 5000);
-                }
-                chrome.runtime.sendMessage({ cmd: "StopDownload", id: daemonId });
             }
-        })();
+
+            const segmentBytes = new Uint8Array(segmentBuffer);
+            
+            const chunkSize = 256 * 1024;
+            let offset = 0;
+            while (offset < segmentBytes.length) {
+                const end = Math.min(offset + chunkSize, segmentBytes.length);
+                const slice = segmentBytes.slice(offset, end);
+                const isLast = (i === segments.length - 1) && (end === segmentBytes.length);
+
+                chrome.runtime.sendMessage({
+                    cmd: "SiphonChunk",
+                    daemon_id: daemonId,
+                    chunk_index: globalChunkIndex,
+                    is_last: isLast,
+                    filename: filename,
+                    total_size: 0,
+                    data: Array.from(slice)
+                });
+
+                globalChunkIndex++;
+                offset = end;
+            }
+
+            const percent = Math.round(((i + 1) / segments.length) * 100);
+            text.innerText = `Stitching segments: ${i + 1} / ${segments.length} (${percent}%)`;
+        }
+
+        console.log(`[JADMan HLS] Successfully fetched and stitched ${segments.length} segments.`);
+        text.innerText = "✅ Download Completed!";
+        setTimeout(() => {
+            if (overlay) overlay.remove();
+        }, 3000);
+
+    } catch(err) {
+        console.error("[JADMan HLS] Segment grabber failed:", err);
+        if (overlay) {
+            overlay.style.borderColor = "#ff3333";
+            const span = overlay.querySelector("span");
+            if (span) span.innerText = `❌ Error: ${err.message || err}`;
+            setTimeout(() => overlay.remove(), 5000);
+        }
+        chrome.runtime.sendMessage({ cmd: "StopDownload", id: daemonId });
+    }
+}
+
+// Bind custom events to helper functions
+window.addEventListener("JADMAN_TRIGGER_BROWSER_FETCH", (event) => {
+    const { url, daemonId, folder } = event.detail;
+    console.log("[JADMan Content] Triggered browser fetch via custom event:", url);
+    startBrowserFetch(url, daemonId, folder);
+});
+
+window.addEventListener("JADMAN_TRIGGER_SEGMENT_FETCH", (event) => {
+    const { url, daemonId, folder } = event.detail;
+    console.log("[JADMan Content] Triggered HLS segment fetch via custom event:", url);
+    startBrowserSegmentFetch(url, daemonId, folder);
+});
     } else if (message.action === "hunt_links") {
         const links = [];
         
