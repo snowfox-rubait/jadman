@@ -568,6 +568,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             frameId: s.frameId || 0
         }));
         sendResponse({ urls: list, siphoned: siphoned });
+    } else if (message.action === "proxy_fetch") {
+        const { url, responseType } = message;
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (responseType === 'arraybuffer') {
+                    return res.arrayBuffer().then(buf => Array.from(new Uint8Array(buf)));
+                } else {
+                    return res.text();
+                }
+            })
+            .then(data => sendResponse({ success: true, data: data }))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
     } else if (message.action === "launch_cdm_extractor") {
         sendNativeMessage({ CdmStart: { url: "", license_url: "", headers: null } });
         sendResponse({ success: true });

@@ -249,14 +249,46 @@ unblockRightClick();
 
 let latestSniffedManifestUrl = null;
 
+async function fetchViaBackground(url, responseType = 'text') {
+    return new Promise((resolve, reject) => {
+        if (!chrome.runtime?.id) {
+            reject(new Error("Extension context invalid"));
+            return;
+        }
+        chrome.runtime.sendMessage({
+            action: "proxy_fetch",
+            url: url,
+            responseType: responseType
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            if (response && response.success) {
+                if (responseType === 'arraybuffer') {
+                    const arr = new Uint8Array(response.data);
+                    resolve(arr.buffer);
+                } else {
+                    resolve(response.data);
+                }
+            } else {
+                reject(new Error(response?.error || "Fetch via background failed"));
+            }
+        });
+    });
+}
+
 // 3. LISTEN FOR SIPHONED DATA
 window.addEventListener(JADMAN_COMM_TOKEN, (event) => {
     if (isPaused) return;
     const { url, type, data, mime, priority } = event.detail || {};
     if (!chrome.runtime?.id) return;
 
-    if (url && (url.includes('.m3u8') || url.includes('.mpd') || priority === 'MANIFEST')) {
-        latestSniffedManifestUrl = url;
+    if (url && (url.includes('.m3u8') || url.includes('.mpd'))) {
+        const isMaster = url.includes('playlist.m3u8') || url.includes('master.m3u8') || url.includes('manifest.mpd') || priority === 'MANIFEST';
+        if (!latestSniffedManifestUrl || isMaster || (!latestSniffedManifestUrl.includes('playlist.m3u8') && !latestSniffedManifestUrl.includes('master.m3u8'))) {
+            latestSniffedManifestUrl = url;
+        }
     }
     
     if (type === 'MEDIA_DETECTED') {
@@ -692,9 +724,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     throw new Error("Target URL is not a valid HLS/DASH manifest URL.");
                 }
 
-                const res = await nativeFetch(manifestUrl);
-                if (!res.ok) throw new Error(`Failed to fetch manifest: HTTP ${res.status}`);
-                let text = await res.text();
+                const text = await fetchViaBackground(manifestUrl);
                 
                 const resolveUrl = (relative, base) => {
                     return new URL(relative, base).href;
@@ -733,16 +763,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 const lines = text.split(/\r?\n/);
                 const segments = [];
+                let keyUrl = null;
+                let encryptionMethod = null;
+                let keyIv = null;
+                let mediaSequence = 0;
+
                 for (let line of lines) {
                     line = line.trim();
                     if (line && !line.startsWith("#")) {
                         segments.push(resolveUrl(line, manifestUrl));
+                    } else if (line.startsWith("#EXT-X-KEY")) {
+                        const methodMatch = line.match(/METHOD=([^,\s]+)/i);
+                        const uriMatch = line.match(/URI=["']([^"']+)["']/i);
+                        const ivMatch = line.match(/IV=0x([a-fA-F0-9]+)/i);
+                        
+                        if (methodMatch) encryptionMethod = methodMatch[1].toUpperCase();
+                        if (uriMatch) keyUrl = resolveUrl(uriMatch[1], manifestUrl);
+                        if (ivMatch) {
+                            const hex = ivMatch[1];
+                            keyIv = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                        }
+                    } else if (line.startsWith("#EXT-X-MEDIA-SEQUENCE")) {
+                        const seqMatch = line.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/i);
+                        if (seqMatch) mediaSequence = parseInt(seqMatch[1], 10);
                     }
                 }
                 
                 return {
                     playlistUrl: manifestUrl,
-                    segments: segments
+                    segments: segments,
+                    encryptionMethod: encryptionMethod,
+                    keyUrl: keyUrl,
+                    keyIv: keyIv,
+                    mediaSequence: mediaSequence
                 };
             }
 
@@ -786,12 +839,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const root = getStealthShadowRoot();
                 nativeAppendChild.call(root, overlay);
 
-                const { playlistUrl, segments } = await fetchAndParseHls(url);
+                const { playlistUrl, segments, encryptionMethod, keyUrl, keyIv, mediaSequence } = await fetchAndParseHls(url);
                 if (segments.length === 0) {
                     throw new Error("No segments found in the HLS manifest.");
                 }
 
                 console.log(`[JADMan HLS] Found ${segments.length} segments to download.`);
+                
+                let aesCryptoKey = null;
+                if (encryptionMethod === "AES-128" && keyUrl) {
+                    console.log(`[JADMan HLS] Stream is AES-128 encrypted. Fetching key from: ${keyUrl}`);
+                    text.innerText = "Fetching HLS decryption key...";
+                    const keyBuffer = await fetchViaBackground(keyUrl, 'arraybuffer');
+                    
+                    aesCryptoKey = await window.crypto.subtle.importKey(
+                        "raw",
+                        keyBuffer,
+                        { name: "AES-CBC" },
+                        false,
+                        ["decrypt"]
+                    );
+                    console.log("[JADMan HLS] AES-128 decryption key imported successfully.");
+                }
+
                 text.innerText = `Stitching segments: 0 / ${segments.length} (0%)`;
 
                 let cleanTitle = document.title.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
@@ -819,7 +889,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         throw new Error(`Failed to fetch segment ${i} after 3 attempts: ${segmentUrl}`);
                     }
 
-                    const segmentBuffer = await segmentResponse.arrayBuffer();
+                    let segmentBuffer = await segmentResponse.arrayBuffer();
+                    
+                    if (aesCryptoKey) {
+                        let iv = keyIv;
+                        if (!iv) {
+                            iv = new Uint8Array(16);
+                            const view = new DataView(iv.buffer);
+                            view.setUint32(12, mediaSequence + i, false);
+                        }
+                        
+                        try {
+                            segmentBuffer = await window.crypto.subtle.decrypt(
+                                { name: "AES-CBC", iv: iv },
+                                aesCryptoKey,
+                                segmentBuffer
+                            );
+                        } catch(err) {
+                            console.error(`[JADMan HLS] AES-128 decryption failed for segment ${i}:`, err);
+                            throw new Error(`Failed to decrypt HLS segment ${i}: ${err.message}`);
+                        }
+                    }
+
                     const segmentBytes = new Uint8Array(segmentBuffer);
                     
                     // Slice segment into 256KB chunks to prevent message buffer exhaustion and page crashes
