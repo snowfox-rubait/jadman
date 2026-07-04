@@ -660,9 +660,59 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "start_browser_segment_fetch") {
         console.log("[JADMan Content Script] Received start_browser_segment_fetch message:", message);
         startBrowserSegmentFetch(message.url, message.daemonId, message.folder);
-    }
-}, true);
+    } else if (message.action === "hunt_links") {
+        const links = [];
+        
+        // Scan standard anchors
+        const anchors = document.querySelectorAll('a');
+        anchors.forEach(a => {
+            const href = a.href || '';
+            const text = (a.innerText || '').trim();
+            const downloadAttr = a.getAttribute('download');
+            
+            const matchesExt = /\.(pdf|zip|rar|tar|gz|mp4|webm|mp3|m4a|dmg|exe|apk|epub)$/i.test(href);
+            const matchesText = /download|get|save/i.test(text) || /download/i.test(a.className) || /download/i.test(a.id);
+            
+            if (href && (matchesExt || matchesText || downloadAttr)) {
+                links.push({
+                    url: href,
+                    text: text || downloadAttr || href.split('/').pop().split('?')[0] || "Download Link",
+                    source: "Anchor"
+                });
+            }
+        });
+        
+        // Scan buttons that might trigger downloads
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            const text = (btn.innerText || '').trim();
+            const onclick = btn.getAttribute('onclick') || '';
+            
+            const matchesText = /download|get|save/i.test(text) || /download/i.test(btn.className) || /download/i.test(btn.id);
+            
+            if (matchesText) {
+                links.push({
+                    url: onclick ? (onclick.match(/https?:\/\/[^\s'"]+/) || [''])[0] : '',
+                    text: text || "Download Button",
+                    source: "Button",
+                    actionable: true
+                });
+            }
+        });
 
+        sendResponse({ links: links.slice(0, 50) });
+    } else if (message.action === "check_inspector_state") {
+        sendResponse({ active: typeof inspectorOverlay !== 'undefined' && inspectorOverlay !== null });
+    } else if (message.action === "toggle_element_inspector") {
+        setupElementInspector(message.active);
+        sendResponse({ success: true });
+    } else if (message.action === "force_preload_streams") {
+        forcePreloadStreams();
+        sendResponse({ success: true });
+    }
+});
+
+// Helper functions and event listeners defined cleanly outside the listener block
 async function startBrowserFetch(url, daemonId, folder) {
     try {
         const response = await nativeFetch(url);
@@ -888,114 +938,6 @@ window.addEventListener("JADMAN_TRIGGER_SEGMENT_FETCH", (event) => {
     const { url, daemonId, folder } = event.detail;
     console.log("[JADMan Content] Triggered HLS segment fetch via custom event:", url);
     startBrowserSegmentFetch(url, daemonId, folder);
-});
-    } else if (message.action === "hunt_links") {
-        const links = [];
-        
-        // Scan standard anchors
-        const anchors = document.querySelectorAll('a');
-        anchors.forEach(a => {
-            const href = a.href || '';
-            const text = (a.innerText || '').trim();
-            const downloadAttr = a.getAttribute('download');
-            
-            const matchesExt = /\.(pdf|zip|rar|tar|gz|mp4|webm|mp3|m4a|dmg|exe|apk|epub)$/i.test(href);
-            const matchesText = /download|get|save/i.test(text) || /download/i.test(a.className) || /download/i.test(a.id);
-            
-            if (href && (matchesExt || matchesText || downloadAttr)) {
-                links.push({
-                    url: href,
-                    text: text || downloadAttr || href.split('/').pop().split('?')[0] || "Download Link",
-                    source: "Anchor"
-                });
-            }
-        });
-        
-        // Scan buttons that might trigger downloads
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(btn => {
-            const text = (btn.innerText || '').trim();
-            const onclick = btn.getAttribute('onclick') || '';
-            
-            const matchesText = /download|get|save/i.test(text) || /download/i.test(btn.className) || /download/i.test(btn.id);
-            
-            if (matchesText) {
-                links.push({
-                    url: onclick ? (onclick.match(/https?:\/\/[^\s'"]+/) || [''])[0] : '',
-                    text: text || "Download Button",
-                    source: "Button",
-                    actionable: true
-                });
-            }
-        });
-
-        sendResponse({ links: links.slice(0, 50) });
-    } else if (message.action === "start_browser_fetch") {
-        console.log("[JADMan Content Script] Received start_browser_fetch message:", message);
-        const { url, daemonId, folder } = message;
-        (async () => {
-            try {
-                const response = await nativeFetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
-                }
-                const totalSize = parseInt(response.headers.get('content-length') || '0', 10);
-                const contentDisp = response.headers.get('content-disposition') || '';
-                
-                let filename = 'download';
-                if (contentDisp) {
-                    const match = contentDisp.match(/filename\*?=["']?(?:UTF-8'')?([^"';\n]+)["']?/i);
-                    if (match && match[1]) {
-                        filename = decodeURIComponent(match[1]);
-                    } else {
-                        const matchSimple = contentDisp.match(/filename=["']?([^"';\n]+)["']?/i);
-                        if (matchSimple && matchSimple[1]) {
-                            filename = matchSimple[1];
-                        }
-                    }
-                }
-                if (filename === 'download') {
-                    filename = url.split('/').pop().split('?')[0] || 'download';
-                }
-                
-                const reader = response.body.getReader();
-                let chunkIndex = 0;
-                let downloaded = 0;
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    const isLast = done;
-                    const chunkData = done ? new Uint8Array(0) : value;
-                    
-                    chrome.runtime.sendMessage({
-                        cmd: "SiphonChunk",
-                        daemon_id: daemonId,
-                        chunk_index: chunkIndex,
-                        is_last: isLast,
-                        filename: filename,
-                        total_size: totalSize,
-                        data: Array.from(chunkData)
-                    });
-                    
-                    if (done) break;
-                    chunkIndex++;
-                    downloaded += chunkData.length;
-                }
-                console.log(`[JADMan Content Script] Browser fetch download completed: ${filename}`);
-            } catch(err) {
-                console.error("[JADMan Content Script] Browser fetch error:", err);
-                chrome.runtime.sendMessage({ cmd: "StopDownload", id: daemonId });
-            }
-        })();
-    } else if (message.action === "check_inspector_state") {
-        sendResponse({ active: typeof inspectorOverlay !== 'undefined' && inspectorOverlay !== null });
-    } else if (message.action === "toggle_element_inspector") {
-        setupElementInspector(message.active);
-        sendResponse({ success: true });
-    } else if (message.action === "force_preload_streams") {
-        forcePreloadStreams();
-        sendResponse({ success: true });
-    }
 });
 
 
