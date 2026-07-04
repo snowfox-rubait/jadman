@@ -609,8 +609,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "proxy_fetch") {
         const { url, responseType, referer } = message;
         const fetchOptions = {};
-        if (referer) {
-            fetchOptions.headers = { "Referer": referer };
+        let targetReferer = referer;
+        const lowerUrl = url.toLowerCase();
+        if (lowerUrl.includes("vidinfra.com") || lowerUrl.includes("tenbytecdn.com")) {
+            targetReferer = "https://player.vidinfra.com/";
+        }
+        if (targetReferer) {
+            fetchOptions.headers = { "Referer": targetReferer };
         }
         fetch(url, fetchOptions)
             .then(res => {
