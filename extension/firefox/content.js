@@ -786,6 +786,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (!cleanTitle) cleanTitle = "video";
                 const filename = `${cleanTitle}.ts`;
 
+                let globalChunkIndex = 0;
                 for (let i = 0; i < segments.length; i++) {
                     const segmentUrl = segments[i];
                     
@@ -808,17 +809,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                     const segmentBuffer = await segmentResponse.arrayBuffer();
                     const segmentBytes = new Uint8Array(segmentBuffer);
-                    const isLast = (i === segments.length - 1);
+                    
+                    // Slice segment into 256KB chunks to prevent message buffer exhaustion and page crashes
+                    const chunkSize = 256 * 1024;
+                    let offset = 0;
+                    while (offset < segmentBytes.length) {
+                        const end = Math.min(offset + chunkSize, segmentBytes.length);
+                        const slice = segmentBytes.slice(offset, end);
+                        const isLast = (i === segments.length - 1) && (end === segmentBytes.length);
 
-                    chrome.runtime.sendMessage({
-                        cmd: "SiphonChunk",
-                        daemon_id: daemonId,
-                        chunk_index: i,
-                        is_last: isLast,
-                        filename: filename,
-                        total_size: 0,
-                        data: Array.from(segmentBytes)
-                    });
+                        chrome.runtime.sendMessage({
+                            cmd: "SiphonChunk",
+                            daemon_id: daemonId,
+                            chunk_index: globalChunkIndex,
+                            is_last: isLast,
+                            filename: filename,
+                            total_size: 0,
+                            data: Array.from(slice)
+                        });
+
+                        globalChunkIndex++;
+                        offset = end;
+                    }
 
                     const percent = Math.round(((i + 1) / segments.length) * 100);
                     text.innerText = `Stitching segments: ${i + 1} / ${segments.length} (${percent}%)`;

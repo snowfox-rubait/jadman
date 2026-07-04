@@ -117,7 +117,7 @@ function spawnJadmPage(url, width = 800, height = 600) {
     });
 }
 
-async function openJadmPopup(url, filename = null, mime = null, targetTabId = null, targetFrameId = null) {
+async function openJadmPopup(url, filename = null, mime = null, targetTabId = null, targetFrameId = null, referer = null) {
     if (isBlacklisted(url)) return;
     await triggerFloat();
     
@@ -140,7 +140,12 @@ async function openJadmPopup(url, filename = null, mime = null, targetTabId = nu
         frameIdParam = `&frameId=${targetFrameId}`;
     }
 
-    const targetUrl = `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}${frameIdParam}`;
+    let refererParam = "";
+    if (referer) {
+        refererParam = `&referer=${encodeURIComponent(referer)}`;
+    }
+
+    const targetUrl = `popup.html?url=${encodeURIComponent(url)}${filename ? '&filename=' + encodeURIComponent(filename) : ''}${mime ? '&mime=' + encodeURIComponent(mime) : ''}${tabIdParam}${frameIdParam}${refererParam}`;
     spawnJadmPage(targetUrl, 450, 380);
 }
 
@@ -415,7 +420,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "request_download") {
         const senderTabId = sender.tab ? sender.tab.id : null;
         const senderFrameId = sender.frameId;
-        openJadmPopup(message.url, null, message.mime, senderTabId, senderFrameId);
+        openJadmPopup(message.url, null, message.mime, senderTabId, senderFrameId, sender.url);
     } else if (message.action === "monitor_native_download") {
         // === CHROME NATIVE DOWNLOAD MONITOR ===
         // Tracks a chrome.downloads download and reports progress/completion to daemon.
