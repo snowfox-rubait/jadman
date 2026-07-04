@@ -769,6 +769,88 @@ async function startBrowserFetch(url, daemonId, folder) {
 }
 
 async function startBrowserSegmentFetch(url, daemonId, folder) {
+    async function fetchAndParseHls(manifestUrl) {
+        const lower = manifestUrl.toLowerCase();
+        const isManifest = lower.includes(".m3u8") || lower.includes(".mpd") || lower.includes("playlist") || lower.includes("manifest");
+        if (!isManifest && !lower.startsWith("blob:")) {
+            throw new Error("Target URL is not a valid HLS/DASH manifest URL.");
+        }
+
+        const text = await fetchViaBackground(manifestUrl);
+        
+        const resolveUrl = (relative, base) => {
+            return new URL(relative, base).href;
+        };
+
+        if (text.includes("#EXT-X-STREAM-INF")) {
+            const lines = text.split(/\r?\n/);
+            let bestPlaylistUrl = null;
+            let bestBandwidth = -1;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith("#EXT-X-STREAM-INF")) {
+                    const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
+                    const bw = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+                    
+                    let nextLine = "";
+                    for (let j = i + 1; j < lines.length; j++) {
+                        if (lines[j].trim() && !lines[j].trim().startsWith("#")) {
+                            nextLine = lines[j].trim();
+                            break;
+                        }
+                    }
+                    if (nextLine && bw > bestBandwidth) {
+                        bestBandwidth = bw;
+                        bestPlaylistUrl = resolveUrl(nextLine, manifestUrl);
+                    }
+                }
+            }
+            
+            if (bestPlaylistUrl) {
+                console.log(`[JADMan HLS] Resolving master playlist to best variant: ${bestPlaylistUrl} (Bandwidth: ${bestBandwidth})`);
+                return fetchAndParseHls(bestPlaylistUrl);
+            }
+        }
+
+        const lines = text.split(/\r?\n/);
+        const segments = [];
+        let keyUrl = null;
+        let encryptionMethod = null;
+        let keyIv = null;
+        let mediaSequence = 0;
+
+        for (let line of lines) {
+            line = line.trim();
+            if (line && !line.startsWith("#")) {
+                segments.push(resolveUrl(line, manifestUrl));
+            } else if (line.startsWith("#EXT-X-KEY")) {
+                const methodMatch = line.match(/METHOD=([^,\s]+)/i);
+                const uriMatch = line.match(/URI=["']([^"']+)["']/i);
+                const ivMatch = line.match(/IV=0x([a-fA-F0-9]+)/i);
+                
+                if (methodMatch) encryptionMethod = methodMatch[1].toUpperCase();
+                if (uriMatch) keyUrl = resolveUrl(uriMatch[1], manifestUrl);
+                if (ivMatch) {
+                    const hex = ivMatch[1];
+                    keyIv = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                }
+            } else if (line.startsWith("#EXT-X-MEDIA-SEQUENCE")) {
+                const seqMatch = line.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/i);
+                if (seqMatch) mediaSequence = parseInt(seqMatch[1], 10);
+            }
+        }
+        
+        return {
+            playlistUrl: manifestUrl,
+            segments: segments,
+            encryptionMethod: encryptionMethod,
+            keyUrl: keyUrl,
+            keyIv: keyIv,
+            mediaSequence: mediaSequence
+        };
+    }
+
     let overlay = null;
     try {
         overlay = document.createElement("div");
