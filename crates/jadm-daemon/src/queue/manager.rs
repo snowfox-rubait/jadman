@@ -1210,8 +1210,14 @@ pub fn netscape_to_cookie_header(nc: &str) -> String {
 
 pub async fn find_cookie_master_profile_id(domain: &str) -> Option<i64> {
     use sqlx::Connection;
-    let home = std::env::var("HOME").ok()?;
-    let db_path = std::path::Path::new(&home).join(".config/CookieJar/jar.db");
+    let db_path = if cfg!(target_os = "windows") {
+        let appdata = std::env::var("APPDATA").ok();
+        appdata.map(|dir| std::path::Path::new(&dir).join("CookieJar/jar.db"))
+    } else {
+        let home = std::env::var("HOME").ok();
+        home.map(|dir| std::path::Path::new(&dir).join(".config/CookieJar/jar.db"))
+    }?;
+    
     if !db_path.exists() {
         return None;
     }
