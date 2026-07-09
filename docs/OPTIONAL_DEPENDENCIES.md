@@ -131,3 +131,21 @@ services:
 *   **Purpose**: Caches torrent downloads to premium gigabit servers and generates high-speed, direct HTTP download links. Essential for downloading torrents anonymously at maximum connection limits without seeding or VPNs.
 *   **Supported Providers**: Real-Debrid, AllDebrid, Premiumize.
 *   **Setup**: Generate an API token from your Debrid account settings and add it to `plugins/debrid/realdebrid.lua` inside JADMan's plugin directory.
+
+---
+
+## 5. Advanced & DRM Decryption Ecosystem
+These optional tools power advanced sniffing, browser emulation, and Widevine DRM key extraction features.
+
+### `frida` (Python Library & Tool)
+*   **Purpose**: Used by the Frida CDM Key Extractor (`scripts/cdm_extractor.py`) inside the JADMan toolbox to hook into browser or media player processes and extract Widevine DRM decryption keys (Client ID and Private Key).
+*   **Installation**:
+    *   Install the Python package: `pip install frida frida-tools`
+    *   On Windows, ensure you run your command prompt as Administrator when running the extractor.
+    *   If targeting Android devices or emulators, ensure the matching `frida-server` binary is running on the target device.
+
+### `camoufox` (Python Library & Stealth Browser)
+*   **Purpose**: Used by the Camoufox engine bypass to scrape and navigate websites protected by advanced anti-bot shields (like Cloudflare, Akamai) using a fingerprint-spoofed stealth browser.
+*   **Installation**:
+    *   Install the Python library: `pip install camoufox`
+    *   Download the browser binaries: `python scripts/download_camoufox.py`
