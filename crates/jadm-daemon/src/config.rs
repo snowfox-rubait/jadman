@@ -21,7 +21,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             hooks: HooksConfig {
-                on_float_toggle: "hyprctl dispatch togglespecialworkspace jadm_float".to_string(),
+                on_float_toggle: default_on_float_toggle(),
             },
             max_concurrent_downloads: default_max_concurrent_downloads(),
             proxy: ProxyConfig::default(),
@@ -31,8 +31,15 @@ impl Default for Config {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct HooksConfig {
-    #[serde(default)]
+    #[serde(default = "default_on_float_toggle")]
     pub on_float_toggle: String,
+}
+
+fn default_on_float_toggle() -> String {
+    #[cfg(target_os = "linux")]
+    { "hyprctl dispatch togglespecialworkspace jadm_float".to_string() }
+    #[cfg(not(target_os = "linux"))]
+    { "".to_string() }
 }
 
 #[derive(Debug, Deserialize, Clone)]

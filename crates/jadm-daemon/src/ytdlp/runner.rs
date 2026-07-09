@@ -19,10 +19,13 @@ pub struct ProgressUpdate {
 
 pub async fn run_ytdlp(url: &str, folder: &str, format: Option<String>, cookies: Option<String>, netscape_cookies: Option<String>, user_agent: Option<String>, ghost_mode: bool, write_subs: bool, embed_thumbnail: bool, embed_chapters: bool, live_from_start: bool, compress_video: bool, download_playlist: bool, referer: Option<String>, write_description: bool, on_spawn: impl FnOnce(u32), mut on_progress: impl FnMut(ProgressUpdate)) -> Result<()> {
     let mut cmd = Command::new(get_ytdlp_path());
+    cmd.env("PYTHONUTF8", "1")
+       .env("PYTHONIOENCODING", "utf-8:replace");
     cmd.arg("--newline")
        .arg("--progress")
        .arg("--continue")      // always resume partial downloads
-       .arg("-o").arg(format!("{}/%(title)s.%(ext)s", folder));
+       .arg("-o").arg(format!("{}/%(title)s.%(ext)s", folder))
+       .arg("--windows-filenames");
 
     if download_playlist {
         cmd.arg("--yes-playlist");
@@ -350,6 +353,8 @@ pub async fn get_formats(
     referer: Option<String>,
 ) -> Result<Vec<jadm_common::protocol::FormatInfo>> {
     let mut cmd = Command::new(get_ytdlp_path());
+    cmd.env("PYTHONUTF8", "1")
+       .env("PYTHONIOENCODING", "utf-8:replace");
     cmd.arg("-J") // Dump JSON metadata
        .arg("--no-playlist");
  
