@@ -61,15 +61,17 @@ jobs:
         PKG_NAME="jadman-${{ matrix.job.target }}"
         
         if [ "${{ matrix.job.os }}" = "windows-latest" ]; then
+          # Compile Windows Installer
+          iscc installer.iss
           # Zip packaging for Windows
           powershell -Command "Compress-Archive -Path $DAEMON_SRC, $TUI_SRC -DestinationPath dist/$PKG_NAME.zip"
-          echo "asset_path=dist/$PKG_NAME.zip" >> $GITHUB_OUTPUT
-          echo "asset_name=$PKG_NAME.zip" >> $GITHUB_OUTPUT
+          echo "asset_path=dist" >> $GITHUB_OUTPUT
+          echo "asset_name=$PKG_NAME" >> $GITHUB_OUTPUT
         else
           # Tar.gz packaging for Linux/macOS
           tar -czf dist/$PKG_NAME.tar.gz -C target/${{ matrix.job.target }}/release jadm-daemon jadm-tui
-          echo "asset_path=dist/$PKG_NAME.tar.gz" >> $GITHUB_OUTPUT
-          echo "asset_name=$PKG_NAME.tar.gz" >> $GITHUB_OUTPUT
+          echo "asset_path=dist" >> $GITHUB_OUTPUT
+          echo "asset_name=$PKG_NAME" >> $GITHUB_OUTPUT
         fi
       shell: bash
 
