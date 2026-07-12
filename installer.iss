@@ -24,11 +24,11 @@ Name: "download_ffmpeg"; Description: "Download and install ffmpeg (recommended 
 
 [Registry]
 ; Native Messaging for Chrome
-Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueValue: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueData: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
 ; Native Messaging for Firefox
-Root: HKCU; Subkey: "Software\Mozilla\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueValue: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Mozilla\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueData: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
 ; Force Install Extension for Google Chrome (if published in Chrome Store)
-Root: HKCU; Subkey: "Software\Policies\Google\Chrome\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueValue: "ipiefkjcicogeoepimgebinafoelhbhd;https://clients2.google.com/service/update2/crx"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Policies\Google\Chrome\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueData: "ipiefkjcicogeoepimgebinafoelhbhd;https://clients2.google.com/service/update2/crx"; Flags: uninsdeletevalue
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\download_deps.ps1"" -InstallDir ""{app}"" -Ytdlp"; Tasks: download_ytdlp; Flags: runhidden; StatusMsg: "Downloading yt-dlp..."
