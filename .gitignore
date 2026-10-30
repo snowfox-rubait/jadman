@@ -49,6 +49,7 @@ pip-selfcheck.json
 /jadman-releases-backup/
 *.zip
 *.tar.gz
+*.tar.xz
 *.deb
 web_archive.tar.gz
 release-artifacts/
