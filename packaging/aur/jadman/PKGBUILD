@@ -1,15 +1,15 @@
 # Maintainer: snowfox-rubait <266122632+snowfox-rubait@users.noreply.github.com>
 pkgname=jadman
-pkgver=0.1.0
+pkgver=0.1.9
 pkgrel=1
 pkgdesc="Advanced Browser-Integrated Download Manager daemon and TUI"
 arch=('x86_64')
-url="https://github.com/snowfox-rubait/JADMan"
+url="https://github.com/snowfox-rubait/jadman"
 license=('GPL3')
 depends=('openssl' 'aria2' 'yt-dlp' 'ffmpeg')
 makedepends=('cargo')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/snowfox-rubait/JADMan/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/snowfox-rubait/jadman/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('3f036a90b902e8b6aaffcfd248b8b129767a2f9f29af3d1a40f2cb36e0cd1929')
 
 prepare() {
   cd "JADMan-$pkgver"

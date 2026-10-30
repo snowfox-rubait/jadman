@@ -4,32 +4,32 @@ pkgver=r1.89df437
 pkgrel=1
 pkgdesc="Advanced Browser-Integrated Download Manager daemon and TUI"
 arch=('x86_64')
-url="https://github.com/snowfox-rubait/JADMan"
+url="https://github.com/snowfox-rubait/jadman"
 license=('GPL3')
 depends=('openssl' 'aria2' 'yt-dlp' 'ffmpeg')
 makedepends=('git' 'cargo')
 provides=('jadman' 'jadm-daemon' 'jadm-tui')
 conflicts=('jadman')
-source=('git+https://github.com/snowfox-rubait/JADMan.git')
+source=('jadman::git+https://github.com/snowfox-rubait/jadman.git')
 sha256sums=('SKIP')
 
 pkgver() {
-  cd "$srcdir/JADMan"
+  cd "$srcdir/jadman"
   printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 prepare() {
-  cd "$srcdir/JADMan"
+  cd "$srcdir/jadman"
   cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 }
 
 build() {
-  cd "$srcdir/JADMan"
+  cd "$srcdir/jadman"
   CARGO_TARGET_DIR=target cargo build --frozen --release
 }
 
 package() {
-  cd "$srcdir/JADMan"
+  cd "$srcdir/jadman"
   install -Dm755 target/release/jadm-daemon "$pkgdir/usr/bin/jadm-daemon"
   install -Dm755 target/release/jadm-tui "$pkgdir/usr/bin/jadm-tui"
   
