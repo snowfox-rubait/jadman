@@ -202,27 +202,22 @@ To allow browser extensions to send downloads to JADMan, register the manifest:
 
 ## Configuration
 
-Config lives at `~/.config/jadm/config.toml`. A default template is generated on first run.
+Config lives at `~/.config/jadm/config.toml` (or `%APPDATA%\jadm\jadm\config\config.toml` on Windows). A default template is provided at [`config/default.toml`](config/default.toml).
 
 ```toml
-[general]
-default_folder = "~/Downloads"
-max_connections = 8
-speed_limit = 0          # 0 = unlimited
+# Maximum concurrent active downloads
+max_concurrent_downloads = 5
 
-[folders]
-Videos     = "~/Downloads/Videos"
-Audio      = "~/Downloads/Audio"
-Documents  = "~/Downloads/Documents"
-Programs   = "~/Downloads/Programs"
+[hooks]
+# Command executed when the floating HUD is toggled
+on_float_toggle = "hyprctl dispatch togglespecialworkspace jadm_float"
 
-[ytdlp]
-format = "bestvideo+bestaudio/best"
-embed_subs = true
-
-[ffmpeg]
-auto_remux = false
-auto_compress = false
+[proxy]
+enabled = false         # Enable transparent TLS MITM proxy
+port = 6248             # Local MITM listener port
+mark = 25160            # Socket routing mark (0x6248)
+setup_network = false   # Automatically manage iptables/nftables packet redirection
+install_ca = false      # Automatically register local CA in system & NSS stores
 ```
 
 ---
@@ -241,7 +236,7 @@ See [`LICENSE`](LICENSE) for the full license text.
 - [x] yt-dlp subprocess runner + URL detection
 - [x] Download queue + SQLite WAL persistence
 - [x] Unix socket & Windows TCP RPC
-- [x] Browser extensions (Chrome MV3 & Firefox MV2) via Native Messaging
+- [x] Browser extensions (Chrome MV3 & Firefox MV3) via Native Messaging
 - [x] Full TUI with syntax-highlighted code/text preview
 - [x] Mock qBittorrent WebAPI on port 6246 (Sonarr, Radarr, Prowlarr)
 - [x] Seekable HTTP media streaming (`/stream/:id`)

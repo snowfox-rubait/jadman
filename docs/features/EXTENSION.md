@@ -1,6 +1,6 @@
 # JADMan Extension Features
 
-## Status: Active Development (Chrome MV3 & Firefox MV2)
+## Status: Active Development (Chrome MV3 & Firefox MV3)
 
 ### Interception & Detection
 - [x] **Standard Interception:** Catches common file extensions (`.zip`, `.rar`, `.iso`, `.tar`, `.exe`, etc.) from standard browser downloads.

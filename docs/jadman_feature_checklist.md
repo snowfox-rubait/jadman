@@ -6,7 +6,7 @@ Use this checklist to verify JADMan's features and benchmark its performance aga
 
 ## 🔌 1. Browser Extension Capabilities
 
-The browser extensions (Chrome MV3 & Firefox MV2) act as the frontend interceptor and stealth scanner.
+The browser extensions (Chrome MV3 & Firefox MV3) act as the frontend interceptor and stealth scanner.
 
 - [x] **Operation Modes**:
   - [x] **General Mode**: Intercepts native browser download events and redirects standard static files directly to the JADMan daemon.

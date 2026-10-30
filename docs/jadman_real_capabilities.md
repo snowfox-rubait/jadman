@@ -1,6 +1,6 @@
 # JADMan Codebase Audit: Real Capabilities vs Stubs & Claims
 
-This report documents the verified technical reality of the JADMan codebase at commit [`161c1c3`](file:///home/test/Projects/jadman/). Every subsystem was audited line-by-line across Rust crates, browser extensions, Lua scripts, and auxiliary tools.
+This report documents the verified technical reality of the JADMan codebase on the `main` branch. Every subsystem was audited line-by-line across Rust crates, browser extensions, Lua scripts, and auxiliary tools.
 
 ---
 

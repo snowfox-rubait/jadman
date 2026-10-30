@@ -51,6 +51,10 @@ pip-selfcheck.json
 *.tar.gz
 *.tar.xz
 *.deb
+*.pkg.tar.zst
+*.pkg.tar.xz
+/packaging/aur/*/pkg/
+/packaging/aur/*/src/
 web_archive.tar.gz
 release-artifacts/
 /packaging/config/

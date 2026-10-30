@@ -111,14 +111,27 @@ mkdir -p "${CONFIG_DIR}"
 # 6. Configure Native Messaging Host
 log_info "Configuring browser Native Messaging hosts..."
 
-MANIFEST_CONTENT=$(cat <<EOF
+CHROME_MANIFEST_CONTENT=$(cat <<EOF
 {
   "name": "com.jadm.jadm",
-  "description": "JADMan integration",
+  "description": "JADMan Native Messaging Host",
   "path": "${INSTALL_DIR}/jadm-daemon",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://ipiefkjcicogeoepimgebinafoelhbhd/"
+  ]
+}
+EOF
+)
+
+FIREFOX_MANIFEST_CONTENT=$(cat <<EOF
+{
+  "name": "com.jadm.jadm",
+  "description": "JADMan Native Messaging Host",
+  "path": "${INSTALL_DIR}/jadm-daemon",
+  "type": "stdio",
+  "allowed_extensions": [
+    "jadm@snowfox.com"
   ]
 }
 EOF
@@ -152,7 +165,7 @@ for dir in "${CHROME_NM_DIRS[@]}"; do
     PARENT_DIR=$(dirname "$dir")
     if [ -d "$PARENT_DIR" ]; then
         mkdir -p "$dir"
-        echo "${MANIFEST_CONTENT}" > "${dir}/com.jadm.jadm.json"
+        echo "${CHROME_MANIFEST_CONTENT}" > "${dir}/com.jadm.jadm.json"
         log_info "Configured Chrome-based host manifest at: ${dir}/com.jadm.jadm.json"
     fi
 done
@@ -160,7 +173,7 @@ done
 # Write Firefox manifests
 for dir in "${FIREFOX_NM_DIRS[@]}"; do
     mkdir -p "$dir"
-    echo "${MANIFEST_CONTENT}" > "${dir}/com.jadm.jadm.json"
+    echo "${FIREFOX_MANIFEST_CONTENT}" > "${dir}/com.jadm.jadm.json"
     log_info "Configured Firefox host manifest at: ${dir}/com.jadm.jadm.json"
 done
 

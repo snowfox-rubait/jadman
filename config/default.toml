@@ -1,0 +1,25 @@
+# JADMan Default Configuration Template
+# Place this file at ~/.config/jadm/config.toml (or %APPDATA%\jadm\jadm\config\config.toml on Windows)
+
+# Maximum parallel downloads active simultaneously
+max_concurrent_downloads = 5
+
+[hooks]
+# Command to execute when the floating HUD is toggled (e.g. Hyprland workspace dispatcher)
+on_float_toggle = "hyprctl dispatch togglespecialworkspace jadm_float"
+
+[proxy]
+# Enable the transparent TLS MITM proxy engine
+enabled = false
+
+# Port for local TLS MITM proxy listener
+port = 6248
+
+# Netfilter routing mark (0x6248 = 25160)
+mark = 25160
+
+# Automatically manage iptables / nftables redirection rules
+setup_network = false
+
+# Automatically install local root CA into NSS database and system trust stores
+install_ca = false

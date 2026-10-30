@@ -26,7 +26,7 @@ Name: "download_ffmpeg"; Description: "Download and install ffmpeg (recommended 
 ; Native Messaging for Chrome
 Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueData: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
 ; Native Messaging for Firefox
-Root: HKCU; Subkey: "Software\Mozilla\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueData: "{app}\com.jadm.jadm.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Mozilla\NativeMessagingHosts\com.jadm.jadm"; ValueType: string; ValueData: "{app}\com.jadm.jadm_firefox.json"; Flags: uninsdeletekey
 ; Force Install Extension for Google Chrome (if published in Chrome Store)
 Root: HKCU; Subkey: "Software\Policies\Google\Chrome\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueData: "ipiefkjcicogeoepimgebinafoelhbhd;https://clients2.google.com/service/update2/crx"; Flags: uninsdeletevalue
 
@@ -103,18 +103,32 @@ begin
     EscapedAppDir := AppDir;
     StringChangeEx(EscapedAppDir, '\', '\\', True);
     
+    // Chrome Native Messaging Manifest
     JsonContent := 
       '{' + #13#10 +
       '  "name": "com.jadm.jadm",' + #13#10 +
-      '  "description": "JADMan integration",' + #13#10 +
+      '  "description": "JADMan Native Messaging Host",' + #13#10 +
       '  "path": "' + EscapedAppDir + '\\jadm-daemon.exe",' + #13#10 +
       '  "type": "stdio",' + #13#10 +
       '  "allowed_origins": [' + #13#10 +
       '    "chrome-extension://ipiefkjcicogeoepimgebinafoelhbhd/"' + #13#10 +
       '  ]' + #13#10 +
       '}';
-      
     JsonFile := AppDir + '\com.jadm.jadm.json';
+    SaveStringToFile(JsonFile, JsonContent, False);
+
+    // Firefox Native Messaging Manifest
+    JsonContent := 
+      '{' + #13#10 +
+      '  "name": "com.jadm.jadm",' + #13#10 +
+      '  "description": "JADMan Native Messaging Host",' + #13#10 +
+      '  "path": "' + EscapedAppDir + '\\jadm-daemon.exe",' + #13#10 +
+      '  "type": "stdio",' + #13#10 +
+      '  "allowed_extensions": [' + #13#10 +
+      '    "jadm@snowfox.com"' + #13#10 +
+      '  ]' + #13#10 +
+      '}';
+    JsonFile := AppDir + '\com.jadm.jadm_firefox.json';
     SaveStringToFile(JsonFile, JsonContent, False);
   end;
 end;

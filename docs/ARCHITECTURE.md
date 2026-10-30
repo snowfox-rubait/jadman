@@ -22,17 +22,21 @@ daemon, exposed to a ratatui TUI and a browser extension via a unified RPC inter
 | Layer | Tool |
 |---|---|
 | Language | Rust (all components except browser extension) |
-| TUI | `ratatui` |
-| Image preview | `yazi-adaptor` crate or custom Kitty/chafa impl |
+| TUI | `ratatui` (Crossterm backend) |
+| Inline preview | Syntax highlighting via `syntect` (Kitty/Chafa image display planned) |
 | Download engine | `aria2c` via JSON-RPC |
 | Media downloader | `yt-dlp` subprocess |
-| Post-processor | `ffmpeg` subprocess |
-| Database | SQLite via `rusqlite` |
-| TUI ↔ Daemon IPC | Unix socket (fast, local, secure) |
-| Extension ↔ Daemon | HTTP/JSON (localhost only) |
+| Post-processor | `ffmpeg` subprocess & hooks |
+| Database | SQLite via `sqlx` (WAL mode) |
+| TUI ↔ Daemon IPC | Unix domain socket (`jadm.sock`) / Windows TCP loopback |
+| Extension ↔ Daemon | Native Messaging host stdio bridge (`com.jadm.jadm`) |
+| Arr Automation ↔ Daemon | Mock qBittorrent v2 WebAPI (`/api/v2/*` on :6246) |
+| Media Streaming | Seekable HTTP Range Server (`/stream/:id` on :6246) |
+| Plugins | Lua 5.4 runtime via `mlua` |
+| Security & Proxy | Token-authenticated SOCKS5 (:6247) & Dynamic TLS MITM (`rcgen`) |
 | Config | TOML |
-| Notifications | `notify-send` via `libnotify` |
-| Browser extension | JavaScript (Manifest V3 Chrome / MV2 Firefox) |
+| Notifications | Desktop alerts via `notify-rust` |
+| Browser extension | JavaScript (Manifest V3 for Chrome and Firefox) |
 
 ---
 
@@ -469,53 +473,22 @@ Selected download
 
 ## 13. Config File (config/default.toml)
 
+Config lives at `~/.config/jadm/config.toml` (or `%APPDATA%\jadm\jadm\config\config.toml` on Windows).
+
 ```toml
-[general]
-default_folder = "~/Downloads"
-clipboard_monitor = false
-max_connections = 8
-speed_limit = 0          # 0 = unlimited, bytes/sec
+# Maximum concurrent active downloads
+max_concurrent_downloads = 5
 
-[folders]
-Videos     = "~/Downloads/Videos"
-Audio      = "~/Downloads/Audio"
-Documents  = "~/Downloads/Documents"
-Programs   = "~/Downloads/Programs"
-Compressed = "~/Downloads/Compressed"
-Other      = "~/Downloads/Other"
-
-[aria2]
-rpc_port    = 6800
-rpc_secret  = ""         # set this
-split       = 8
-min_split_size = "1M"
-
-[ytdlp]
-format      = "bestvideo+bestaudio/best"
-embed_subs  = true
-output_template = "%(title)s.%(ext)s"
-
-[ffmpeg]
-auto_remux  = false      # remux to mp4 after download
-auto_compress = false    # re-encode to h265 after download
-crf         = 28
-
-[notifications]
-enabled     = true
-on_complete = true
-on_fail     = true
-
-[antivirus]
-enabled     = false
-command     = "clamscan --remove=no"
+[hooks]
+# Command executed when the floating HUD is toggled (e.g. Hyprland workspace)
+on_float_toggle = "hyprctl dispatch togglespecialworkspace jadm_float"
 
 [proxy]
-enabled     = false
-url         = ""         # socks5://127.0.0.1:9050 for Tor
-
-[daemon]
-unix_socket = "/run/user/1000/jadm.sock"
-http_port   = 6246       # for browser extension
+enabled       = false     # Enable transparent TLS MITM proxy
+port          = 6248      # Local MITM listener port
+mark          = 25160     # Socket routing mark (0x6248)
+setup_network = false     # Automatically manage iptables/nftables packet redirection
+install_ca    = false     # Automatically register local CA in system & NSS stores
 ```
 
 ---
@@ -546,7 +519,7 @@ http_port   = 6246       # for browser extension
 - [x] Sorting + filtering (dynamic categories & status tabs)
 
 ### Phase 3
-- [x] Browser extension (Chrome MV3 & Firefox MV2 with Native Messaging)
+- [x] Browser extension (Chrome MV3 & Firefox MV3 with Native Messaging)
 - [x] Proxy / SOCKS5 support (port 6247) & TLS MITM engine
 - [x] Mock qBittorrent WebAPI on port 6246 (Sonarr, Radarr, Prowlarr)
 - [x] Seekable HTTP media streaming (`/stream/:id`)
@@ -567,7 +540,7 @@ http_port   = 6246       # for browser extension
 tokio        = { version = "1", features = ["full"] }  # async runtime
 serde        = { version = "1", features = ["derive"] }
 serde_json   = "1"
-rusqlite     = { version = "0.31", features = ["bundled"] }
+sqlx         = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }
 ratatui      = "0.26"
 reqwest      = { version = "0.12", features = ["json"] }  # aria2 RPC
 axum         = "0.7"  # HTTP server for extension endpoint

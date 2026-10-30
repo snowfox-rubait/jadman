@@ -91,6 +91,6 @@ graph TD
 - `crates/jadm-daemon`: The core brain (RPC, MITM proxy, SOCKS5, HTTP streaming, Arr WebAPI, Engine orchestration).
 - `crates/jadm-tui`: The terminal interface (Ratatui, Crossterm, Syntax-highlighted text preview via Syntect).
 - `crates/jadm-common`: Shared types and protocol definitions.
-- `extension/`: Chrome (MV3) and Firefox (MV2) multi-layered capture extensions with Native Messaging.
+- `extension/`: Chrome (MV3) and Firefox (MV3) multi-layered capture extensions with Native Messaging.
 - `plugins/`: Extensible Lua plugins (`mlua`) for Real-Debrid, Wayback Machine recovery, Telegram bot, and desktop notifications.
 - `scripts/`: Python helper tools for Widevine CDM key extraction (`cdm_extractor.py`) and Camoufox stealth automation (`download_camoufox.py`).

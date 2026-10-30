@@ -74,7 +74,7 @@ graph TD
 | **Common Protocol** | [`crates/jadm-common/`](file:///home/test/Projects/jadman/crates/jadm-common/) | Rust | Shared data models, RPC request/response schemas, engine enums, and download states. |
 | **Core Daemon** | [`crates/jadm-daemon/`](file:///home/test/Projects/jadman/crates/jadm-daemon/) | Rust (Tokio, SQLx, Axum, Tower) | Background service handling queue management, IPC, network proxying, clipboard sniffing, and engine orchestration. |
 | **Terminal UI** | [`crates/jadm-tui/`](file:///home/test/Projects/jadman/crates/jadm-tui/) | Rust (Ratatui, Crossterm, Syntect) | Interactive terminal dashboard with vim navigation, live stats, queue controls, and syntax-highlighted previews. |
-| **Browser Extension** | [`extension/`](file:///home/test/Projects/jadman/extension/) | JavaScript (Chrome MV3, Firefox MV2) | Page media sniffing, floating action badges, chunk siphoning, CORS-bypassing background fetch, and native messaging. |
+| **Browser Extension** | [`extension/`](file:///home/test/Projects/jadman/extension/) | JavaScript (Chrome MV3, Firefox MV3) | Page media sniffing, floating action badges, chunk siphoning, CORS-bypassing background fetch, and native messaging. |
 | **Lua Plugins** | [`plugins/`](file:///home/test/Projects/jadman/plugins/) | Lua (`mlua`) | Event hooks and providers (Real-Debrid resolver, Wayback Machine fallback, Telegram bot alerts, desktop notifications). |
 | **Automation Scripts** | [`scripts/`](file:///home/test/Projects/jadman/scripts/) | Python 3 (Frida, Playwright) | Widevine L3 decryption key dumping (`cdm_extractor.py`) and stealth browser downloading (`download_camoufox.py`). |
 
