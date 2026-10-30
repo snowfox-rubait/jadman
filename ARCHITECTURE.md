@@ -66,30 +66,31 @@ graph TD
 - **Stealth Scraper:** Integration with `Camoufox` to bypass anti-bot protections.
 
 ### 2. Security & Deep Inspection
-- **Transparent Proxy:** Built-in MITM server with custom CA to decrypt and inspect HTTPS traffic.
-- **CDM/DRM Support:** Scaffolding for `CdmStart` to handle encrypted media license requests.
+- **Transparent Proxy:** Built-in MITM server with custom CA (`rcgen`) and local SOCKS5 proxy on port 6247 to inspect and route traffic.
+- **CDM/DRM Support:** Widevine L3 decryption key extractor (`scripts/cdm_extractor.py`) using Frida to hook `libwidevinecdm.so` and dump AES keys.
 
-### 3. Smart Bandwidth "Stealth" Mode (Future)
-- **Context-Aware Throttling:** Automatically detects low-latency traffic (Gaming, Zoom) and throttles download speeds to 5% dynamically.
+### 3. Media Automation & "Arr" Integration
+- **Mock qBittorrent WebAPI:** Daemon natively serves `/api/v2/*` endpoints on port 6246, allowing Sonarr, Radarr, and Prowlarr to add, track, and delete downloads transparently.
+- **Debrid Support:** Resolves Magnet/Torrent links into high-speed HTTP downloads via Lua plugin (`plugins/debrid/realdebrid.lua`).
+
+### 4. Media Streaming & Playback
+- **Seekable HTTP Media Streaming:** `GET /stream/:id` serves active and completed downloads with HTTP range headers via `tower_http::services::ServeFile`, enabling instant seekable playback in VLC or mpv before download completes. Pressing `v` in the TUI copies the streaming URL.
+- **Virtual File System (VFS) (Future):** FUSE mount exposing active downloads as virtual directories.
+
+### 5. Link Graveyard (Wayback Machine 404 Recovery)
+- **Automatic Resurrection:** Automatically detects HTTP 404 failures in `QueueManager` and queries the Wayback Machine API via `plugins/recovery/wayback.lua` to resurrect dead links.
+
+### 6. Smart Bandwidth "Stealth" Mode (Future)
+- **Context-Aware Throttling:** Automatically detects low-latency traffic (Gaming, Zoom) and throttles download speeds dynamically.
 - **Router Sync:** Communicates with smart routers to balance home-wide internet traffic.
-
-### 4. Media Automation & "Arr" Integration (Future)
-- **Seedbox TUI:** A premium, keyboard-driven interface that manages both direct downloads and torrents.
-- **Debrid Support:** Transparently converts Magnet/Torrent links to high-speed HTTP downloads via services like Real-Debrid.
-- **Media Sync:** Native integration with Sonarr/Radarr for a "Missing Episode" dashboard.
-
-### 5. Virtual File System (VFS) & Streaming (Future)
-- **FUSE Mount:** Mounts active downloads as a local folder.
-- **Sequential Priority:** Downloads the beginning of video files first, allowing you to watch a 4K movie in VLC while it's still 5% complete.
-
-### 6. Link Graveyard (Future)
-- **Resurrection:** Automatically hunts for `404 Not Found` files on the Internet Archive (Wayback Machine).
 
 ---
 
 ## 📂 Project Structure
 
-- `crates/jadm-daemon`: The core brain (RPC, MITM, Engine management).
-- `crates/jadm-tui`: The terminal interface (Ratatui, Syntax highlighting).
+- `crates/jadm-daemon`: The core brain (RPC, MITM proxy, SOCKS5, HTTP streaming, Arr WebAPI, Engine orchestration).
+- `crates/jadm-tui`: The terminal interface (Ratatui, Crossterm, Syntax-highlighted text preview via Syntect).
 - `crates/jadm-common`: Shared types and protocol definitions.
-- `extension/`: Chrome and Firefox 5-layer capture extensions.
+- `extension/`: Chrome (MV3) and Firefox (MV2) multi-layered capture extensions with Native Messaging.
+- `plugins/`: Extensible Lua plugins (`mlua`) for Real-Debrid, Wayback Machine recovery, Telegram bot, and desktop notifications.
+- `scripts/`: Python helper tools for Widevine CDM key extraction (`cdm_extractor.py`) and Camoufox stealth automation (`download_camoufox.py`).

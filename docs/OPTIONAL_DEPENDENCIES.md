@@ -33,7 +33,7 @@ These backends are used by the daemon to perform the actual download operations.
 These tools power desktop integration features like notifications and clipboard copy.
 
 ### `libnotify` / `notify-send`
-*   **Purpose**: Exposes desktop notifications. Used by the JADMan Lua notifier script (`hooks/notify.lua`) to throw native popups upon download starts, successes, or failures.
+*   **Purpose**: Exposes desktop notifications. Used by the JADMan Lua notifier script (`plugins/hooks/notify.lua`) to throw native popups upon download starts, successes, or failures.
 *   **Arch Linux**: `sudo pacman -S libnotify`
 *   **Debian/Ubuntu**: `sudo apt install libnotify-bin`
 *   **Fedora**: `sudo dnf install libnotify`
@@ -78,7 +78,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/sonarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
@@ -92,7 +92,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/radarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -106,7 +106,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/lidarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 8686:8686
     restart: unless-stopped

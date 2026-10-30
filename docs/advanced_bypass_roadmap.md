@@ -5,6 +5,7 @@ This document outlines theoretical, state-of-the-art bypasses for zero-trust cli
 ---
 
 ## 1. WebGL Canvas Capture (Bypass for Wasm Rendering)
+> **Status**: Prototype implemented in extension (`extension/chrome/siphon_hook.js` & `content.js`).
 
 ### Adversary Defense
 The server compiles its video decoding logic into a mutated WebAssembly (Wasm) module. The video streams are decoded inside the Wasm linear heap and rendered directly to a `<canvas>` element using WebGL, completely bypassing the HTML5 media player and MSE hooks.
@@ -16,6 +17,7 @@ The server compiles its video decoding logic into a mutated WebAssembly (Wasm) m
 ---
 
 ## 2. EME Key Extraction (Frida CDM Hooking)
+> **Status**: Implemented (`scripts/cdm_extractor.py` and `Request::CdmStart`).
 
 ### Adversary Defense
 Media segments are encrypted using Widevine or PlayReady DRM. The browser passes segments to the operating system's Content Decryption Module (CDM), which decrypts them inside a secure CPU/GPU enclave.
@@ -27,6 +29,7 @@ Media segments are encrypted using Widevine or PlayReady DRM. The browser passes
 ---
 
 ## 3. Active TCP-State Syncing (TCP Fingerprint Bypass)
+> **Status**: SOCKS5 proxy active (`crates/jadm-daemon/src/rpc/socks.rs`); kernel socket option tuning planned.
 
 ### Adversary Defense
 Passive OS fingerprinting engines (like `p0f` or Akamai's network layer) analyze packet RTT, MTU sizes, and TCP Window Scale settings. If a Linux downloader (yt-dlp) sends a request claiming to be Windows Chrome, the server detects the mismatch and blocks it.
@@ -49,6 +52,7 @@ Hostile scripts inspect the webpage's DOM prototypes to see if core APIs (like `
 ---
 
 ## 5. Debugger Network Capture (No-Connection Bypass)
+> **Status**: Prototype implemented in browser extension (`extension/chrome/`).
 
 ### Adversary Defense
 The server pins authorization credentials to the exact TCP/TLS session established by the browser tab. Any secondary connection attempt (even with identical cookies and TLS fingerprints) is immediately rejected.
@@ -60,6 +64,7 @@ The server pins authorization credentials to the exact TCP/TLS session establish
 ---
 
 ## 6. Stealth DOM Overlay Host (In-Viewport Visual Masking)
+> **Status**: Implemented via closed shadow DOM and prototype caching in `content.js`.
 
 ### Adversary Defense
 Hostile scripts monitor the DOM structure (via `MutationObserver` or `document.querySelectorAll('*')`) to detect UI additions injected by video grabbers or download manager extensions. If they find any unrecognized nodes, class names, or IDs, they shut down playback or restrict access.

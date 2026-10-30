@@ -1,19 +1,28 @@
-# JADM Extension Features
+# JADMan Extension Features
 
-## Status: Active Development
+## Status: Active Development (Chrome MV3 & Firefox MV2)
 
 ### Interception & Detection
-- [x] **Standard Interception:** Catches common file extensions (.zip, .rar, .iso, etc.) from standard browser downloads.
+- [x] **Standard Interception:** Catches common file extensions (`.zip`, `.rar`, `.iso`, `.tar`, `.exe`, etc.) from standard browser downloads.
 - [x] **Network Sniffer:** Monitors MIME types in the background to detect hidden media streams (MP4, WebM, M3U8, DASH).
-- [x] **YouTube Shorts Support:** Specifically detects and enables downloads for YouTube Shorts player.
-- [x] **Vimeo Support:** Basic detection for Vimeo video pages.
+- [x] **YouTube & Twitch Support:** Handles video/audio streams, shorts, and live streams, updating media URLs dynamically across in-page SPA navigation.
+- [x] **Shadow DOM Traversing:** Recursively pierces open and closed shadow DOM roots to discover hidden `<video>` and `<audio>` tags.
+- [x] **Native Messaging Bridge:** Communicates directly with `jadm-daemon` via stdio using `chrome.runtime.connectNative("com.jadm.jadm")`.
+- [x] **Cookie Passing:** Automatically extracts Netscape cookies (including CHIPS/partitioned cookies) and sends them to the daemon for authenticated downloads.
+- [x] **Siphon Chunk Streaming:** Injects `siphon_hook.js` to monkey-patch `fetch` and `XMLHttpRequest`, slicing stream buffers into 256KB chunks and streaming them to the daemon.
+- [x] **WebGL Canvas Capture:** Records raw video frames from WebGL canvas contexts when video playback is handled via Wasm/Canvas rendering.
 
-### User Interface
-- [x] **Floating Media Bar:** Draggable red bar injected into video players for quick "one-click" access.
-- [x] **Quality Selector Popup:** A dedicated popup window that fetches available formats from the daemon before starting.
-- [x] **Batch Grabber:** A powerful popup triggered by right-clicking a text selection to batch-download multiple links.
+### User Interface & Toolbox
+- [x] **Floating Media Bar:** Configurable badge overlay injected into video players for one-click downloading.
+- [x] **Right-Click Context Menu Toolbox:** Native browser context menu options:
+  - *Download this Media/Link*
+  - *Download Selected Links*
+  - *Grab all Page Media (Videos/Audio/Docs)*
+  - *Grab all Website Assets (Images/CSS/JS)*
+  - *Button Position Submenu*
+- [x] **Quality Selector Popup:** Popup modal fetching available audio/video formats and resolutions dynamically.
+- [x] **Batch Grabber:** Dedicated grabber window for filtering, selecting, and bulk-downloading discovered links.
 
 ### Planned Features
-- [ ] **Advanced Grabber Filters:** Filter by file size or date if available in headers.
-- [ ] **Cookie Passing:** Automatically send browser cookies to aria2c/yt-dlp for authenticated downloads (e.g., premium sites).
-- [ ] **Context Menu "Download Link":** Right-click a single link to send directly to JADM.
+- [ ] **Advanced Grabber Filters:** Enhanced regex and date-based filtering.
+- [ ] **Dynamic Behavioral Mimicry:** Randomized pointer movements and delay intervals for high-adversary bot detection evasion.

@@ -36,9 +36,9 @@ Cloudflare Bot Fight Mode v2 (and v3) **binds `cf_clearance` to the TLS fingerpr
 
 **Implementation Plan:**
 1. ✅ Add a "Browser Download" button/option in `popup.js` for Ghost Mode
-2. ✅ Implement `SiphonChunk` and `StopSiphon` RPC handlers in daemon Unix server ([unix.rs](file:///home/rubait/Work/jadm/crates/jadm-daemon/src/rpc/unix.rs))
-3. ✅ Stream chunks sequentially into target directories with auto-truncation on chunk `0` and append mode on subsequent chunks in `QueueManager` ([manager.rs](file:///home/rubait/Work/jadm/crates/jadm-daemon/src/queue/manager.rs))
-4. ✅ Test suite covering chunk siphoning correctness ([tests.rs](file:///home/rubait/Work/jadm/crates/jadm-daemon/src/queue/tests.rs))
+2. ✅ Implement `SiphonChunk` and `StopSiphon` RPC handlers in daemon Unix server ([unix.rs](file:///home/test/Projects/jadman/crates/jadm-daemon/src/rpc/unix.rs))
+3. ✅ Stream chunks sequentially into target directories with auto-truncation on chunk `0` and append mode on subsequent chunks in `QueueManager` ([manager.rs](file:///home/test/Projects/jadman/crates/jadm-daemon/src/queue/manager.rs))
+4. ✅ Test suite covering chunk siphoning correctness ([tests.rs](file:///home/test/Projects/jadman/crates/jadm-daemon/src/queue/tests.rs))
 
 ### Resiliency & Resume Support (Post-Power Outage)
 - **Database Safety**: SQLite WAL mode ensures transactional safety, keeping the download queue state consistent.

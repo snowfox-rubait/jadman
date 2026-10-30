@@ -9,7 +9,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/sonarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
@@ -23,7 +23,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/radarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -37,7 +37,7 @@ services:
       - TZ=Asia/Dhaka
     volumes:
       - ./config/lidarr:/config
-      - /home/rubait/Downloads:/downloads
+      - ${HOME}/Downloads:/downloads
     ports:
       - 8686:8686
     restart: unless-stopped

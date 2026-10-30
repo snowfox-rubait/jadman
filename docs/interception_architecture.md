@@ -1,28 +1,26 @@
 # JADMan System Interception Architecture
 
-To achieve OS-level interception on Linux (the "IDM Moat"), we are building two major subsystems. Both bypass the limitations of browser extension APIs.
+To achieve OS-level interception on Linux (the "IDM Moat"), JADMan implements two major subsystems. Both bypass the limitations of browser extension APIs.
 
 ## 1. Smart Desktop Handler (XDG Integration)
-Instead of just intercepting browser downloads, JADM will intercept **everything** you click across your entire desktop environment (Discord, Telegram, Terminal, etc.).
+Instead of just intercepting browser downloads, JADMan intercepts links clicked across the entire desktop environment (Discord, Telegram, Terminal, chat apps, etc.).
 
-**How it works:**
-1. JADM registers itself as the default handler for `http://` and `https://` in `~/.config/mimeapps.list`.
-2. When you click a link anywhere, `xdg-open` hands the URL to `jadm-daemon handle-url <URL>`.
-3. JADM instantly sends a `HEAD` request to the URL.
-4. **The Split:**
-   - If the response is `text/html`, JADM transparently passes the URL to your actual default browser (e.g., Firefox or Chrome).
-   - If the response is a media file, archive, or binary (`video/*`, `application/zip`, `application/octet-stream`), JADM intercepts it and adds it to the download queue.
+**Implementation (`crates/jadm-daemon/src/desktop.rs`):**
+1. JADMan registers `jadman-handler.desktop` as the handler for `http://` and `https://` via `xdg-mime`.
+2. When a link is clicked anywhere on the desktop, `xdg-open` forwards the URL to `jadm-daemon handle-url <URL>`.
+3. JADMan sends an asynchronous `HEAD` request to inspect the `Content-Type` header:
+   - **HTML / Web Pages (`text/html`)**: JADMan transparently passes the URL to the user's real browser (e.g., Firefox, Chrome, Brave) via `gtk-launch` or `xdg-open`.
+   - **Media, Archives, & Binaries (`video/*`, `audio/*`, `application/zip`, `application/octet-stream`)**: JADMan intercepts the URL and sends `Request::AddDownload` to the local daemon socket.
 
 ## 2. Transparent TLS MITM Proxy (The Network Moat)
-This is the holy grail of download interception. It catches downloads initiated *inside* the browser before the browser can even save them to disk.
+Catches downloads initiated directly inside applications before data hits the disk.
 
-**How it works:**
-1. **CA Generation:** JADM generates a unique local Root Certificate Authority (CA) and registers it in your system trust store and NSS DB (`~/.pki/nssdb`).
-2. **Redirection:** We configure `iptables` or `nftables` to redirect all outbound TCP port 80/443 traffic from your user account to a local JADM proxy port (e.g., `8080`), explicitly exempting the JADM daemon itself to prevent infinite loops.
-3. **Dynamic TLS:** When the browser tries to connect to `youtube.com`, the JADM proxy intercepts the connection, reads the SNI, dynamically generates a leaf certificate for `youtube.com` signed by our local CA, and completes the TLS handshake.
-4. **Interception:** The proxy forwards the HTTP request to the real server. If the server replies with `Content-Disposition: attachment` or a massive binary payload, JADM intercepts the headers, steals the session cookies, sends a fake "Download Intercepted by JADM" HTML page back to the browser, and hands the real download task to the Aria2/yt-dlp backend.
+**Implementation (`crates/jadm-daemon/src/proxy/`):**
+1. **CA Generation (`cert.rs`):** JADMan generates a local Root Certificate Authority (CA) using `rcgen` and installs it into system trust stores and user NSS databases (`~/.pki/nssdb`).
+2. **Redirection (`iptables.rs`):** Configures `iptables`/`nftables` rules to route outbound HTTP/HTTPS traffic to the local proxy port, exempting the daemon's own UID to prevent loops.
+3. **Dynamic TLS (`mitm.rs`):** Intercepts outbound TLS handshakes, dynamically mints leaf certificates signed by the local CA, and negotiates TLS.
+4. **Interception:** Inspects HTTP responses; if `Content-Disposition: attachment` or media streams are detected, cookies and headers are extracted and enqueued in `QueueManager`.
 
 ---
 
-**Implementation Order:**
-I will begin by building the **Smart Desktop Handler** right now, as it requires zero root privileges and immediately improves quality of life. Then we will move on to the TLS MITM Proxy.
+**Status:** Both the **Smart Desktop Handler** and the **TLS MITM Proxy** modules are implemented in `crates/jadm-daemon`.

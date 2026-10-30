@@ -19,48 +19,51 @@ a real answer to it. JADMan is that answer, and it goes further:
 | Feature | IDM | JADMan |
 |---|:---:|:---:|
 | Segmented / multi-connection downloads | ✅ | ✅ |
-| Browser integration (intercept clicks) | ✅ | ✅ |
-| Schedule downloads | ✅ | ✅ |
-| Video site downloads (YouTube, etc.) | ❌ | ✅ |
-| Media-aware triggers (start based on conditions) | ❌ | ✅ |
+| Browser integration (click & stream capture) | ✅ | ✅ |
+| Schedule downloads | ✅ | 🟡 (In progress) |
+| Video site downloads (YouTube, Twitch, etc.) | ❌ | ✅ |
+| Media-aware triggers (start based on conditions) | ❌ | 🟡 (In progress) |
 | Terminal-native TUI | ❌ | ✅ |
-| Inline file preview (images, video, code) | ❌ | ✅ |
+| Inline code/text syntax-highlighted preview | ❌ | ✅ |
+| Seekable HTTP media streaming (VLC/mpv) | ❌ | ✅ |
+| Arr automation suite (mock qBittorrent API) | ❌ | ✅ |
+| Extensible Lua plugin system | ❌ | ✅ |
 | Clipboard monitor | ✅ | ✅ |
-| Batch download with smart link extraction | ✅ | ✅ |
-| Fetch interception (catches XHR/fetch streams) | ❌ | ✅ |
-| Proxy / Tor support | ✅ | ✅ |
+| Batch grabber with smart link extraction | ✅ | ✅ |
+| Fetch & WebGL interception (catches streams & blobs) | ❌ | ✅ |
+| Native SOCKS5 proxy & TLS MITM engine | ❌ | ✅ |
+| CookieJar password-protected cookie store | ❌ | ✅ |
 | Fully open source, forever | ❌ | ✅ |
 
 ---
 
 ## Features
 
-### Core Engine
-- **Segmented downloads** via `aria2c` — split files into up to 16 parallel connections
-- **Video & audio downloads** via `yt-dlp` — supports YouTube, Twitter/X, Twitch, and
-  [thousands more](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
-- **Smart URL routing** — automatically decides whether a URL goes to `aria2c` or `yt-dlp`
-- **Post-processing hooks** via `ffmpeg` — auto-remux, compress, or convert after download
+### Core Engine & Routing
+- **Segmented downloads** via `aria2c` — split files into parallel connections (up to 16)
+- **Video & audio downloads** via `yt-dlp` — supports YouTube, Twitch, Twitter/X, and thousands of supported extractors
+- **Smart URL routing & auto-categorization** — automatically classifies URLs (Documents, Archives, Videos, Audio, Programs, Images) and assigns engines
+- **In-progress media streaming** — `GET /stream/:id` serves active downloads with byte-range headers, letting you watch videos in VLC/mpv while downloading
+- **Mock qBittorrent WebAPI** — listens on port 6246 emulating qBittorrent v2 (`/api/v2/*`) for out-of-the-box integration with Sonarr, Radarr, and Prowlarr
+- **CookieJar Integration** — queries `~/.config/CookieJar/jar.db` and pipes decrypted Netscape cookies straight to `yt-dlp` via stdin
 
-### Scheduler & Triggers
-Schedule any download to start based on real conditions, not just a clock:
-
-- **Time** — start at a specific date/time
-- **On complete** — chain downloads (start B when A finishes)
-- **Storage threshold** — start when disk space drops below N GB (Planned)
-- **Media position** — start when you've watched 75% of an episode (Planned)
-
-### Browser Extension (Chrome / Firefox)
-A 5-layer capture system that catches downloads other extensions miss:
-
-- Intercepts Chrome's native download dialog and reroutes to JADMan
+### Browser Extension & Interception
+A multi-layered capture system connecting via **Native Messaging** (`com.jadm.jadm`):
+- Intercepts browser download dialogs and reroutes them to JADMan
+- Injects floating download badges onto HTML5 `<video>` and `<audio>` players across shadow DOM boundaries
+- Siphons raw memory chunks from monkey-patched `fetch`/`XMLHttpRequest` and WebGL canvas contexts
 - Sniffs network responses by MIME type and file size
-- Injects download buttons directly onto `<video>` and `<audio>` elements on any page
-- Patches `fetch` and `XMLHttpRequest` at page level to catch streams and blobs
-- Batch grabber UI for bulk-selecting and downloading multiple links at once
+- Batch grabber UI and right-click context menu toolbox for mass link selection
+- OS-level URL interception via `jadman-handler.desktop`
+
+### Lua Plugin Ecosystem (`plugins/`)
+- **Real-Debrid resolver** (`realdebrid.lua`): Automatically unrestrict torrents and magnets into high-speed direct HTTP streams
+- **Wayback Machine 404 recovery** (`wayback.lua`): Automatically queries the Internet Archive when downloads return HTTP 404
+- **Telegram bot** (`telegram.lua`): Remote status polling and completion alerts
+- **Desktop notifications** (`notify.lua`): Native desktop notifications via `notify-rust`
 
 ### TUI (Terminal UI)
-Built with `ratatui`. Three-panel layout: categories, download list, detail/preview.
+Built with `ratatui` and `crossterm`. Three-panel layout: categories, download list, detail/preview.
 
 ```
 ┌─────────────────┬──────────────────────────────┬───────────────────────────┐
@@ -78,34 +81,31 @@ Built with `ratatui`. Three-panel layout: categories, download list, detail/prev
 ```
 
 - **Pacman-style progress bar** — `[########c    ]` with a moving mouth character
-- **Inline preview** — syntax-highlighted code/text via `syntect`, images/video via `ffmpeg` hooks
-- **Fully keyboard-driven** — vim-style navigation, submenu keybinds, no mouse needed
-- **Fuzzy search**, visual range select, sort by any column
+- **Inline syntax preview** — syntax-highlighted code/text inspection via `syntect`
+- **Vim-style navigation** — fast keyboard navigation, single-key download controls
+- **Stream URL copy** — press `v` on any download to copy its seekable streaming URL to the clipboard
 
-### Everything Else
-- **Clipboard monitor** — watches your clipboard for URLs and offers to download them
-- **Notifications** via `libnotify` (`notify-rust`)
-- **Antivirus hook** — optional post-download `clamscan`
-- **Proxy / Tor support** — SOCKS5 passthrough
-- **SQLite database** — persistent queue, survives daemon restarts
-- **TOML config** — sane defaults, fully configurable
+### Security & Advanced Tools
+- **Authenticated SOCKS5 Proxy** — local proxy on port 6247 secured with token authentication
+- **TLS MITM Proxy** — dynamic root CA generation and packet redirection for encrypted stream sniffing
+- **Widevine CDM Key Extractor** — Frida script (`scripts/cdm_extractor.py`) hooking `libwidevinecdm.so` to dump AES keys
+- **Camoufox Stealth Browser** — anti-bot automation script (`scripts/download_camoufox.py`) for Cloudflare-protected sites
 
 ---
 
 ## Architecture
 
-JADMan runs as a background daemon (`jadm-daemon`) that everything else connects to.
-The TUI and browser extension are just clients — the daemon is the brain.
+JADMan runs as a persistent background daemon (`jadm-daemon`) that client interfaces connect to.
 
 ```
-Browser Extension  ──HTTP (localhost:6246)──▶  jadm-daemon
+Browser Extension  ──Native Messaging (stdio)──▶ jadm-daemon (jadm.sock)
+TUI (jadm-tui)     ──Unix Domain Socket───────▶ jadm-daemon (jadm.sock)
+Sonarr / Radarr    ──Mock qBittorrent API :6246─▶ jadm-daemon
+VLC / mpv Players  ──HTTP Stream /stream/:id────▶ jadm-daemon
                                                     │
-TUI (jadm-tui)     ──Unix socket──────────────────▶ │
-                                                    │
-                                             aria2c / yt-dlp / ffmpeg
-                                             SQLite
-                                             Scheduler
-                                             Clipboard monitor
+                                           aria2c / yt-dlp / SQLite WAL
+                                           CookieJar / Lua Plugins
+                                           SOCKS5 & TLS MITM Proxy
 ```
 
 ---
@@ -134,7 +134,8 @@ JADMan orchestrates high-speed downloads and stream stitching using `aria2`, `yt
 ### 2. Get JADMan
 You can build JADMan from source (requires the Rust toolchain):
 ```bash
-git clone https://codeberg.org/snowfox-rubait-96/jadman.git
+# Clone from GitHub (or Codeberg mirror: https://codeberg.org/snowfox-rubait-96/jadman.git)
+git clone https://github.com/snowfox-rubait/jadman.git
 cd jadman
 cargo build --release
 ```
@@ -143,7 +144,7 @@ cargo build --release
 
 ### 3. Register Browser Native Messaging Host
 To allow browser extensions to send downloads to JADMan, register the manifest:
-*   **Windows**: Open CMD/PowerShell as user in the folder containing `jadm-daemon.exe` and run:
+*   **Windows**: Open CMD/PowerShell in the folder containing `jadm-daemon.exe` and run:
     ```cmd
     jadm-daemon.exe install-native-manifest
     ```
@@ -167,29 +168,35 @@ To allow browser extensions to send downloads to JADMan, register the manifest:
     *   **Windows**: Launch `jadm-daemon.exe` (runs in background shell).
 2.  **Open TUI Console**:
     *   Run `jadm-tui` (or `jadm-tui.exe` on Windows) to view the queue and control downloads via keyboard shortcuts.
-```
 
 ---
 
 ## Keybindings (TUI)
 
+### Active Keybindings
+
 | Key | Action |
 |---|---|
-| `h / l` | Move focus between panels |
-| `j / k` | Move up / down |
-| `a` | Add URL |
-| `A` | Batch add |
-| `p` | Pause selected |
-| `r` | Resume selected |
-| `s` | Stop selected |
-| `d` | Remove from list |
-| `D` | Remove + delete file |
-| `o` | Open file |
-| `O` | Open folder |
-| `t` | Set schedule / trigger |
-| `/` | Fuzzy search |
-| `?` | Help overlay |
-| `q` | Quit |
+| `h / l` | Move focus between panels (Categories / Downloads / Detail) |
+| `j / k` | Move selection up / down in download list |
+| `g / G` | Jump to top / bottom of list |
+| `a` | Add download URL (opens input prompt) |
+| `p` | Pause selected download |
+| `r` | Resume selected download |
+| `s` | Stop selected download |
+| `d` | Remove download from queue list |
+| `D` | Remove download and permanently delete file from disk |
+| `v / V` | Copy seekable stream URL (`http://127.0.0.1:6246/stream/:id`) to clipboard for VLC/mpv |
+| `c / C` | Open Cookie Master password modal to decrypt stored cookies |
+| `?` | Toggle help overlay |
+| `q` | Quit TUI |
+
+### Planned Keybindings (In Active Development)
+- `A` — Batch add multiple URLs
+- `o / O` — Open completed file / containing folder in file manager
+- `t` — Interactive schedule / condition trigger editor
+- `/` — Live fuzzy search / filter
+- `m*` — Column sorting submenu (`mn` by name, `ms` by size, `md` by date, etc.)
 
 ---
 
@@ -232,12 +239,18 @@ See [`LICENSE`](LICENSE) for the full license text.
 
 - [x] Daemon architecture + aria2c integration
 - [x] yt-dlp subprocess runner + URL detection
-- [x] Download queue + SQLite persistence
-- [x] Unix socket RPC
-- [x] Browser extension (Chrome)
-- [x] Full TUI with preview engine
-- [ ] Scheduler engine (Time & OnComplete implemented)
-- [x] Firefox extension
+- [x] Download queue + SQLite WAL persistence
+- [x] Unix socket & Windows TCP RPC
+- [x] Browser extensions (Chrome MV3 & Firefox MV2) via Native Messaging
+- [x] Full TUI with syntax-highlighted code/text preview
+- [x] Mock qBittorrent WebAPI on port 6246 (Sonarr, Radarr, Prowlarr)
+- [x] Seekable HTTP media streaming (`/stream/:id`)
+- [x] CookieJar AES decryption integration
+- [x] Lua plugin engine (Real-Debrid, Wayback Machine, Telegram alerts, desktop notifications)
+- [x] Local SOCKS5 proxy (port 6247) & dynamic TLS MITM proxy
+- [x] Frida Widevine L3 decryption key extractor
+- [ ] Scheduler engine evaluation loop
+- [ ] Terminal image/video inline preview (Kitty/Chafa)
 - [ ] Packaged releases (AUR, .deb, Flatpak)
 - [ ] mpv IPC media position trigger
 - [ ] Remote daemon access (SSH tunnel)

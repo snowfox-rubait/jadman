@@ -59,15 +59,15 @@ CREATE TABLE IF NOT EXISTS cookie_profiles (
 
 ---
 
-## 📋 Action Items
+## 📋 Implementation Status
 
-- [ ] **Step 1: Database Schema Migration**
-  Add `cookie_profiles` schema and migration file.
-- [ ] **Step 2: Add Cryptographic Helpers**
-  Add `age` dependency and password-based encryption/decryption functions to `crates/jadm-daemon`.
-- [ ] **Step 3: Update Queue Manager & Database Queries**
-  Implement profile insertion, retrieval, and delete queries.
-- [ ] **Step 4: Update yt-dlp Subprocess stdin Injection**
-  Modify `run_ytdlp` in `runner.rs` to support `--cookies -` and write to stdin.
-- [ ] **Step 5: Browser Extension integration**
-  Update the popup to support toggling cookie persistence or showing status.
+- [x] **Step 1: Database Schema Migration**
+  Cookie jar schema and password profile cache established.
+- [x] **Step 2: Add Cryptographic Helpers**
+  `age` / AES decryption integrated via `cookie-jar use` with `COOKIE_JAR_PASSWORD` forwarding.
+- [x] **Step 3: Update Queue Manager & Database Queries**
+  Implemented domain matching against `~/.config/CookieJar/jar.db` in `QueueManager`.
+- [x] **Step 4: Update yt-dlp Subprocess stdin Injection**
+  Implemented `--cookies -` in `runner.rs` to pipe Netscape cookies directly into child process `stdin`.
+- [x] **Step 5: Browser Extension & TUI Integration**
+  Implemented partitioned cookie collection in `background.js` and Master Password entry modal (`c`/`C`) in `jadm-tui`.

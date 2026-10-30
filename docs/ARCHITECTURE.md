@@ -41,40 +41,40 @@ daemon, exposed to a ratatui TUI and a browser extension via a unified RPC inter
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Browser Extension                        │
-│  (intercepts clicks → POST to daemon HTTP :6246)            │
+│  (intercepts clicks, siphons streams, native messaging)     │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP JSON (localhost:6246)
+                           │ Native Messaging (stdio bridge)
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                        jadmd (daemon)                        │
+│                   jadm-daemon (daemon)                      │
 │                                                             │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │  aria2c RPC │  │  yt-dlp sub  │  │   ffmpeg hooks    │  │
-│  │   client    │  │   process    │  │  (post-download)  │  │
+│  │  aria2c RPC │  │  yt-dlp sub  │  │    Lua Plugins    │  │
+│  │   client    │  │   process    │  │(Debrid, Wayback)  │  │
 │  └──────┬──────┘  └──────┬───────┘  └─────────┬─────────┘  │
 │         │                │                     │            │
 │  ┌──────▼────────────────▼─────────────────────▼─────────┐  │
 │  │               Download Queue Manager                  │  │
-│  │         (routing, state, priority, retries)           │  │
+│  │     (routing, state, priority, retries, categories)   │  │
 │  └──────────────────────────┬────────────────────────────┘  │
 │                             │                               │
 │  ┌──────────────────────────▼────────────────────────────┐  │
-│  │                   SQLite Database                     │  │
-│  │          (downloads, scheduler, settings)             │  │
+│  │                SQLite WAL Database                    │  │
+│  │          (downloads, scheduler, cookiejar)            │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │  Scheduler   │  │  Clipboard   │  │   Notification    │  │
-│  │   Engine     │  │   Monitor    │  │   Dispatcher      │  │
+│  │  Scheduler   │  │  Clipboard   │  │  qBittorrent API  │  │
+│  │  (in progr)  │  │   Monitor    │  │  & Media Stream   │  │
 │  └──────────────┘  └──────────────┘  └───────────────────┘  │
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │          Unix Socket RPC Server (/run/jadm.sock)     │   │
+│  │     Unix Socket RPC Server ($XDG_RUNTIME_DIR/jadm)   │   │
 │  └──────────────────────────┬───────────────────────────┘   │
 └─────────────────────────────┼───────────────────────────────┘
                               │ Unix socket
 ┌─────────────────────────────▼───────────────────────────────┐
-│                       jadm (TUI)                             │
+│                       jadm-tui (TUI)                        │
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │                    ratatui renderer                    │  │
@@ -87,7 +87,7 @@ daemon, exposed to a ratatui TUI and a browser extension via a unified RPC inter
 │                                                             │
 │  ┌──────────────────┐  ┌──────────────┐  ┌──────────────┐   │
 │  │ Keybind          │  │   Preview    │  │  Daemon RPC  │   │
-│  │ Dispatcher       │  │   Engine     │  │  Client      │   │
+│  │ Dispatcher       │  │ (Syntect)    │  │  Client      │   │
 │  └──────────────────┘  └──────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -233,7 +233,7 @@ All messages are JSON over Unix socket (TUI) or HTTP POST (extension).
       "eta_secs": 392,
       "status": "downloading",
       "category": "Programs",
-      "folder": "/home/rubait/Downloads/Programs",
+      "folder": "/home/user/Downloads/Programs",
       "resumable": true,
       "connections": 8,
       "added_at": 1718100000,
@@ -296,7 +296,7 @@ CREATE TABLE settings (
 { "type": "time",             "at": "2025-06-12T02:00:00" }
 { "type": "on_complete",      "watch_id": "abc123" }
 { "type": "media_position",   "watch_file": "/path/to/ep1.mp4", "percent": 75 }
-{ "type": "storage_below",    "path": "/home/rubait", "bytes": 5368709120 }
+{ "type": "storage_below",    "path": "/home/user", "bytes": 5368709120 }
 { "type": "bandwidth_below",  "bytes_per_sec": 524288 }
 ```
 
@@ -528,29 +528,35 @@ http_port   = 6246       # for browser extension
 4. `extension/` — independent, JS only
 
 ### Phase 1 (MVP)
-- [ ] jadm-common types
-- [ ] aria2c RPC client
-- [ ] yt-dlp subprocess runner + URL detector
-- [ ] Download queue manager
-- [ ] SQLite schema + basic queries
-- [ ] Unix socket RPC server
-- [ ] Basic three-panel TUI (no preview yet)
-- [ ] Core keybinds: add, pause, resume, stop, delete
+- [x] jadm-common types
+- [x] aria2c RPC client
+- [x] yt-dlp subprocess runner + URL detector
+- [x] Download queue manager
+- [x] SQLite schema + basic queries
+- [x] Unix socket RPC server
+- [x] Basic three-panel TUI
+- [x] Core keybinds: add, pause, resume, stop, delete
 
 ### Phase 2
-- [ ] ffmpeg hooks
-- [ ] Preview engine (image, video thumbnail, text)
-- [ ] Scheduler engine
-- [ ] Clipboard monitor
-- [ ] Notifications
-- [ ] Sorting + filtering
+- [ ] standalone ffmpeg hooks (handled internally by yt-dlp)
+- [x] Preview engine (syntax-highlighted code/text via syntect)
+- [ ] Scheduler engine evaluation loop (triggers stored in SQLite)
+- [x] Clipboard monitor
+- [x] Notifications
+- [x] Sorting + filtering (dynamic categories & status tabs)
 
 ### Phase 3
-- [ ] Browser extension
-- [ ] Proxy / SOCKS5 support
-- [ ] Antivirus hook
+- [x] Browser extension (Chrome MV3 & Firefox MV2 with Native Messaging)
+- [x] Proxy / SOCKS5 support (port 6247) & TLS MITM engine
+- [x] Mock qBittorrent WebAPI on port 6246 (Sonarr, Radarr, Prowlarr)
+- [x] Seekable HTTP media streaming (`/stream/:id`)
+- [x] CookieJar AES decryption integration
+- [x] Lua plugin engine (`plugins/` via `mlua`)
+- [x] Frida Widevine L3 decryption key extractor
+- [ ] Antivirus hook (clamscan)
 - [ ] Omarchy theme sync
 - [ ] mpv IPC listener for media_position trigger
+- [ ] Terminal image/video inline preview (Kitty/chafa)
 
 ---
 

@@ -20,7 +20,7 @@ To avoid the generic, over-designed "AI template" look, JADMan's site will adopt
 We will keep the codebase simple and dependency-free so it can be deployed directly to Cloudflare Pages:
 *   `website/index.html`: Single semantic HTML5 document.
 *   `website/style.css`: Clean, hand-crafted vanilla CSS layout using Flexbox/CSS Grid.
-*   `website/script.js`: Client-side browser logic to dynamically fetch the latest release asset URLs from Codeberg's API and auto-detect the user's OS.
+*   `website/script.js`: Client-side browser logic to dynamically fetch the latest release asset URLs from GitHub/Codeberg API and auto-detect the user's OS.
 
 ---
 

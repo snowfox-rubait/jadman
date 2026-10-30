@@ -25,11 +25,11 @@ winget install Gyan.FFmpeg
 *Note: Close and reopen your terminal after installation to refresh the PATH.*
 
 ### Step 2: Download or Compile JADMan
-*   **From Codeberg Releases**: Download `jadman-x86_64-pc-windows-msvc.zip` from the repository's Release page and extract `jadm-daemon.exe` and `jadm-tui.exe` to a folder of your choice (e.g. `C:\Program Files\JADMan\`).
+*   **From GitHub / Codeberg Releases**: Download `jadman-x86_64-pc-windows-msvc.zip` from the repository's Releases page on GitHub or Codeberg and extract `jadm-daemon.exe` and `jadm-tui.exe` to a folder of your choice (e.g. `C:\Program Files\JADMan\`).
 *   **Compile from Source**: Install the Rust compiler from [rustup.rs](https://rustup.rs/), clone the repository, and compile:
     ```cmd
-    git clone https://codeberg.org/snowfox-rubait-96/jadman.git
-    cd jaddman
+    git clone https://github.com/snowfox-rubait/jadman.git
+    cd jadman
     cargo build --release
     ```
     Your binaries will be generated at `target\release\jadm-daemon.exe` and `target\release\jadm-tui.exe`.
@@ -125,8 +125,8 @@ pkg install rust clang make python ffmpeg aria2 git
 
 ### Step 2: Clone and Compile
 ```bash
-git clone https://codeberg.org/snowfox-rubait-96/jadman.git
-cd jaddman
+git clone https://github.com/snowfox-rubait/jadman.git
+cd jadman
 cargo build --release
 ```
 
@@ -135,7 +135,7 @@ cargo build --release
     ```bash
     target/release/jadm-daemon &
     ```
-2.  Open Kiwi Browser or Firefox Beta on Android (which support unpacked extensions), load the JADMan extension, and configure browser proxy settings to redirect downloads directly to localhost (`127.0.0.1:6246`).
+2.  Open Kiwi Browser or Firefox Beta on Android (which support unpacked extensions), load the JADMan extension, or route downloads through JADMan's local SOCKS5 proxy (`127.0.0.1:6247`).
 3.  Open the TUI client on your phone:
     ```bash
     target/release/jadm-tui

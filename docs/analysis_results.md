@@ -33,8 +33,9 @@ These features, once listed as incomplete or planned in your historical notes, a
 These items are structurally supported by the daemon or exist in a basic form, but require further polishing or user scripts to be fully complete:
 
 *   **Torrent & \*Arr Stack Integration**:
-    *   *Status*: We've created the asynchronous, thread-safe Lua scripting engine in the daemon (`ScriptManager`). The daemon supports resolving magnets/torrents via Lua hooks (`debrid_resolve`) and executing lifecycle triggers (`on_download_complete`).
-    *   *Remaining*: The concrete user scripts mimicking qBittorrent's Web UI HTTP API (to allow Sonarr/Radarr to add torrents to JADMan) and translating those commands to debrid HTTP download tasks are left to user-land scripting (`~/.config/jadm/plugins/debrid/`).
+    *   *Status*: Fully implemented. The daemon natively emulates qBittorrent's Web UI HTTP API on port 6246 (`/api/v2/*`) in `crates/jadm-daemon/src/rpc/http.rs`, allowing Sonarr, Radarr, and Prowlarr to connect directly. Torrents and magnets are resolved into high-speed HTTP downloads via Lua plugin (`plugins/debrid/realdebrid.lua`).
+*   **Wayback Machine 404 Recovery (Link Graveyard)**:
+    *   *Status*: Fully wired up and implemented. When downloads fail with HTTP 404 or connection loss, `QueueManager`'s error loop in `crates/jadm-daemon/src/queue/manager.rs` automatically invokes `recovery_resolve` on the Lua plugin (`plugins/recovery/wayback.lua`) to query the Internet Archive Wayback Machine and requeue recovered URLs.
 *   **Live Stream Auto-Detection**:
     *   *Status*: Default engine heuristics handle `.m3u8` and `.mpd` links automatically.
     *   *Remaining*: The extension popup still includes the manual "Live video support" checkbox as a fallback; fully automated format stream detection is on the roadmap.
@@ -44,21 +45,15 @@ These items are structurally supported by the daemon or exist in a basic form, b
 ## 3. 🔴 New / Haven't Touched Yet
 These features from the Vision and problems files represent untouched roadmap targets:
 
-*   **Wayback Machine 404 Recovery (Link Graveyard)**:
-    *   *Status*: We implemented the Lua thread-safe worker signature `recovery_resolve` to support Internet Archive queries.
-    *   *Remaining*: The automatic invocation inside the daemon `QueueManager`'s HTTP error-handling loop (to automatically trigger recovery on `404` or connection errors) has not been wired up yet.
 *   **FUSE Mount / Virtual File System**:
     *   *Status*: Proposed in the overall vision document.
-    *   *Remaining*: Mounting active/partial downloads as virtual folders to enable playback (e.g. streaming VLC in sequential chunk order) remains untouched.
+    *   *Remaining*: Mounting active/partial downloads as virtual folders to enable playback (e.g. streaming VLC in sequential chunk order) remains untouched. (Note: Seekable HTTP streaming is currently provided via `GET /stream/:id`).
 *   **Smart Bandwidth "Stealth" Mode**:
     *   *Status*: Proposed in vision.
     *   *Remaining*: Dynamic system-level QoS or router communication to throttle downloads only when gaming, video conferencing, or high-latency tasks are active.
-*   **Mobile Companion / Telegram Bot**:
-    *   *Status*: Proposed remote snapping interfaces.
-    *   *Remaining*: Not implemented.
 *   **EdgeCourseBD & DeviantArt Scrapers**:
     *   *Status*: Site-specific download issues noted in `problems.md`.
-    *   *Remaining*: Can now be solved by adding custom scraper Lua scripts to `~/.config/jadm/plugins/debrid/` rather than hardcoding site extractors in Rust.
+    *   *Remaining*: Can now be solved by adding custom scraper Lua scripts to `plugins/debrid/` rather than hardcoding site extractors in Rust.
 
 ---
 
